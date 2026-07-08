@@ -146,6 +146,7 @@ Deployment docs:
 
 ```text
 docs/deployment_guide.md
+docs/deployment_guide_zh.md
 docs/docker_runbook.md
 docs/deployment_profiles.md
 deploy/server/README.md
