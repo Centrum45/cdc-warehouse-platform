@@ -1,0 +1,18 @@
+[Unit]
+Description=CDC Warehouse SparkStreaming Kafka To HDFS
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cdc
+Group=cdc
+WorkingDirectory=/opt/cdc-warehouse-platform
+EnvironmentFile=/etc/cdc-warehouse/jobs.env
+ExecStart=/opt/cdc-warehouse-platform/deploy/server/run_spark_streaming.sh
+Restart=always
+RestartSec=10
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target

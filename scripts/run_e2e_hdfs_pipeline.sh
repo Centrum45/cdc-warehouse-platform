@@ -57,6 +57,8 @@ docker compose -f "${compose_file}" -f "${hive_compose_file}" up -d \
 wait_until "mysql healthy" "docker inspect -f '{{.State.Health.Status}}' cdc-warehouse-mysql | grep -q healthy" 120
 wait_until "kafka healthy" "docker inspect -f '{{.State.Health.Status}}' cdc-warehouse-kafka | grep -q healthy" 120
 wait_until "hdfs ready" "docker exec cdc-warehouse-hdfs-namenode hdfs dfs -ls /warehouse" 120
+docker exec cdc-warehouse-hdfs-namenode hdfs dfsadmin -safemode leave >> "${ops_log}" 2>&1 || true
+wait_until "hdfs safemode off" "docker exec cdc-warehouse-hdfs-namenode hdfs dfsadmin -safemode get | grep -q 'Safe mode is OFF'" 120
 wait_until "hive ready" "docker exec cdc-warehouse-hive-server beeline -u jdbc:hive2://localhost:10000 -e 'show databases;'" 180
 
 log "init hdfs/hive ddl"

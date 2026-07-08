@@ -1,0 +1,10 @@
+warehouse:
+  mysql:
+    fallback-demo-data: false
+  actions:
+    public-enabled: false
+  validation:
+    enabled: true
+    require-project-root: true
+    require-mysql: true
+    require-ops-dir: true

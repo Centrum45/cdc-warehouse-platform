@@ -18,19 +18,34 @@
       th { background: #f0f3f7; }
       label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #52606d; }
       input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd2d9; border-radius: 4px; }
+      select { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd2d9; border-radius: 4px; }
       button { background: #0f766e; color: white; border: 0; border-radius: 4px; padding: 9px 14px; cursor: pointer; }
+      button.secondary { background: #334155; }
+      button.warn { background: #b45309; }
+      button:disabled { opacity: 0.6; cursor: wait; }
       pre { background: #111827; color: #e5e7eb; padding: 12px; border-radius: 4px; overflow: auto; max-height: 320px; font-size: 12px; line-height: 1.45; }
       .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
       .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .status-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+      .status-card { border: 1px solid #d9dee5; border-radius: 6px; padding: 10px; background: #fbfcfd; min-height: 72px; }
+      .status-card strong { display: block; font-size: 13px; margin-bottom: 6px; overflow-wrap: anywhere; }
+      .status-card span { display: block; font-size: 12px; line-height: 1.35; }
+      .badge { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: bold; }
+      .badge-ok { color: #065f46; background: #d1fae5; }
+      .badge-bad { color: #991b1b; background: #fee2e2; }
+      .layer-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+      .layer-tab { border: 1px solid #cbd5e1; border-radius: 999px; padding: 6px 10px; background: #f8fafc; color: #334155; font-size: 12px; }
+      .layer-block { margin-top: 14px; }
       .muted { color: #657383; font-size: 13px; }
       .ok { color: #047857; font-weight: bold; }
       .bad { color: #b91c1c; font-weight: bold; }
       .path { font-family: Menlo, monospace; font-size: 12px; color: #334155; }
       .actions { margin-top: 14px; display: flex; gap: 10px; align-items: center; }
+      .action-panel { display: grid; grid-template-columns: 180px 180px repeat(5, max-content); gap: 10px; align-items: end; }
       .refresh { float: right; color: #cbd5e1; font-size: 13px; margin-top: 4px; }
       .refresh small { color: #94a3b8; }
       @media (max-width: 900px) {
-        .grid, .grid-2 { grid-template-columns: 1fr; }
+        .grid, .grid-2, .status-grid, .action-panel { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -48,6 +63,44 @@
       </nav>
     </header>
     <main>
+      <section>
+        <h2>运行状态</h2>
+        <div class="status-grid" id="serviceStatuses">
+          <#list dashboard.serviceStatuses as service>
+          <div class="status-card">
+            <strong>${service.name}</strong>
+            <span><span class="badge <#if service.running>badge-ok<#else>badge-bad</#if>"><#if service.running>UP<#else>DOWN</#if></span></span>
+            <span>${service.status?html}</span>
+            <span class="muted">${service.ports?html}</span>
+          </div>
+          </#list>
+        </div>
+      </section>
+
+      <section>
+        <h2>运维操作</h2>
+        <div class="action-panel">
+          <div>
+            <label>Biz DT</label>
+            <input id="actionBizDt" value="2026-07-07">
+          </div>
+          <div>
+            <label>DS Mode</label>
+            <select id="dsMode">
+              <option value="--audit">audit</option>
+              <option value="--dry-run">dry-run</option>
+              <option value="--live">live</option>
+            </select>
+          </div>
+          <button type="button" onclick="runAction('refresh-ops', this)">刷新快照</button>
+          <button type="button" onclick="runAction('daily-merge', this)">跑每日 Merge</button>
+          <button type="button" onclick="runAction('full-pipeline', this)">跑 ADS 全链路</button>
+          <button type="button" class="secondary" onclick="runAction('monitor-suite', this)">跑监控</button>
+          <button type="button" class="warn" onclick="runAction('ds-publish', this)">发布 DS</button>
+        </div>
+        <pre id="actionResult"></pre>
+      </section>
+
       <section>
         <h2>接入新 MySQL 表</h2>
         <form method="post" action="/">
@@ -111,14 +164,47 @@
           <tr>
             <td>${table.databaseName}</td>
             <td>${table.tableName}</td>
-            <td>${table.odsBinlogTable}</td>
-            <td>${table.odsTable}</td>
-            <td>${table.primaryKeys?join(",")}</td>
-            <td>${table.versionColumn}</td>
-            <td>${table.partitionColumn}</td>
+            <td>${table.odsBinlogTable!""}</td>
+            <td>${table.odsTable!""}</td>
+            <td><#if table.primaryKeys??>${table.primaryKeys?join(",")}</#if></td>
+            <td>${table.versionColumn!""}</td>
+            <td>${table.partitionColumn!""}</td>
           </tr>
           </#list>
         </table>
+      </section>
+
+      <section>
+        <h2>数仓分层数据</h2>
+        <p class="muted">来源优先 HDFS <span class="path">/warehouse</span>，无 HDFS 时回退本地 <span class="path">data/lake</span>。</p>
+        <div id="warehouseLayers">
+          <#list dashboard.warehouseLayers as layer>
+          <div class="layer-block">
+            <h3>${layer.layer} <span class="muted">${layer.tableCount} tables · ${layer.partitionCount} partitions</span></h3>
+            <table>
+              <tr>
+                <th>Table</th>
+                <th>Latest DT</th>
+                <th>Rows</th>
+                <th>Path</th>
+                <th>Sample</th>
+              </tr>
+              <#list layer.tables as table>
+              <tr>
+                <td>${table.table}</td>
+                <td>${table.latestPartition!""}</td>
+                <td>${table.rowCount}</td>
+                <td class="path">${table.latestPath!""}</td>
+                <td><pre>${(table.sample!"")?html}</pre></td>
+              </tr>
+              </#list>
+              <#if layer.tables?size == 0>
+              <tr><td colspan="5" class="muted">no data</td></tr>
+              </#if>
+            </table>
+          </div>
+          </#list>
+        </div>
       </section>
 
       <section>
@@ -201,6 +287,15 @@
       </section>
     </main>
     <script>
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
       function nearBottom(el) {
         return el.scrollHeight - el.scrollTop - el.clientHeight < 24;
       }
@@ -216,6 +311,73 @@
         } else {
           el.scrollTop = previousTop;
         }
+      }
+
+      function renderServiceStatuses(services) {
+        var root = document.getElementById("serviceStatuses");
+        if (!root) return;
+        root.innerHTML = (services || []).map(function (service) {
+          var ok = service.running === true;
+          return '<div class="status-card">'
+            + '<strong>' + escapeHtml(service.name) + '</strong>'
+            + '<span><span class="badge ' + (ok ? 'badge-ok' : 'badge-bad') + '">' + (ok ? 'UP' : 'DOWN') + '</span></span>'
+            + '<span>' + escapeHtml(service.status) + '</span>'
+            + '<span class="muted">' + escapeHtml(service.ports) + '</span>'
+            + '</div>';
+        }).join("");
+      }
+
+      function renderWarehouseLayers(layers) {
+        var root = document.getElementById("warehouseLayers");
+        if (!root) return;
+        root.innerHTML = (layers || []).map(function (layer) {
+          var rows = (layer.tables || []).map(function (table) {
+            return '<tr>'
+              + '<td>' + escapeHtml(table.table) + '</td>'
+              + '<td>' + escapeHtml(table.latestPartition) + '</td>'
+              + '<td>' + escapeHtml(table.rowCount) + '</td>'
+              + '<td class="path">' + escapeHtml(table.latestPath) + '</td>'
+              + '<td><pre>' + escapeHtml(table.sample) + '</pre></td>'
+              + '</tr>';
+          }).join("");
+          if (!rows) {
+            rows = '<tr><td colspan="5" class="muted">no data</td></tr>';
+          }
+          return '<div class="layer-block">'
+            + '<h3>' + escapeHtml(layer.layer) + ' <span class="muted">' + escapeHtml(layer.tableCount) + ' tables · ' + escapeHtml(layer.partitionCount) + ' partitions</span></h3>'
+            + '<table><tr><th>Table</th><th>Latest DT</th><th>Rows</th><th>Path</th><th>Sample</th></tr>'
+            + rows
+            + '</table></div>';
+        }).join("");
+      }
+
+      function runAction(action, button) {
+        var payload = {
+          bizDt: document.getElementById("actionBizDt").value,
+          mode: document.getElementById("dsMode").value
+        };
+        var result = document.getElementById("actionResult");
+        var previous = button.textContent;
+        button.disabled = true;
+        button.textContent = "Running";
+        result.textContent = "running " + action + " ...";
+        fetch("/api/actions/" + action, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            result.textContent = "exitCode=" + data.exitCode + "\n" + (data.output || "");
+            refreshDashboard();
+          })
+          .catch(function (error) {
+            result.textContent = String(error);
+          })
+          .finally(function () {
+            button.disabled = false;
+            button.textContent = previous;
+          });
       }
 
       function refreshDashboard() {
@@ -234,6 +396,8 @@
             setText("hiveServerLogs", data.hiveServerLogs);
             setText("containerStatus", data.containerStatus);
             setText("adminLogs", data.adminLogs);
+            renderServiceStatuses(data.serviceStatuses);
+            renderWarehouseLayers(data.warehouseLayers);
             document.getElementById("refreshStatus").textContent = "updated";
           })
           .catch(function () {

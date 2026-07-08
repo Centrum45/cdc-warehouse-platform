@@ -1,5 +1,6 @@
 package com.example.warehouse.service;
 
+import com.example.warehouse.config.WarehouseProperties;
 import com.example.warehouse.model.MonitorResult;
 import com.example.warehouse.repository.MonitorResultRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -21,15 +22,22 @@ public class MonitorService {
 
     private final MonitorResultRepository monitorResultRepository;
     private final ObjectMapper objectMapper;
+    private final CommandExecutorService commandExecutorService;
+    private final WarehouseProperties warehouseProperties;
 
-    public MonitorService(MonitorResultRepository monitorResultRepository, ObjectMapper objectMapper) {
+    public MonitorService(MonitorResultRepository monitorResultRepository, ObjectMapper objectMapper, CommandExecutorService commandExecutorService, WarehouseProperties warehouseProperties) {
         this.monitorResultRepository = monitorResultRepository;
         this.objectMapper = objectMapper;
+        this.commandExecutorService = commandExecutorService;
+        this.warehouseProperties = warehouseProperties;
     }
 
     public List<String> listMonitorItems() {
-        File file = new File(FALLBACK_PATH);
+        File file = new File(commandExecutorService.getProjectRoot(), FALLBACK_PATH);
         if (!file.exists()) {
+            if (!warehouseProperties.getMysql().isFallbackDemoData()) {
+                throw new IllegalStateException("No monitor items fallback file and fallback is disabled");
+            }
             log.info("Fallback file not found, returning built-in list");
             return getBuiltInMonitorTypes();
         }

@@ -20,6 +20,15 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 
+echo "wait hdfs safemode off..."
+for _ in $(seq 1 60); do
+  docker exec cdc-warehouse-hdfs-namenode hdfs dfsadmin -safemode leave >/dev/null 2>&1 || true
+  if docker exec cdc-warehouse-hdfs-namenode hdfs dfsadmin -safemode get 2>/dev/null | grep -q 'Safe mode is OFF'; then
+    break
+  fi
+  sleep 2
+done
+
 docker exec cdc-warehouse-hdfs-namenode hdfs dfs -mkdir -p \
   /warehouse/ods_binlog \
   /warehouse/ods \

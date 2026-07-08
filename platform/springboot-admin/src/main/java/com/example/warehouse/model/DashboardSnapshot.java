@@ -17,6 +17,8 @@ public class DashboardSnapshot {
     private String hiveServerLogs;
     private String refreshedAt;
     private List<TableStorageView> tableStorage = new ArrayList<>();
+    private List<ServiceStatus> serviceStatuses = new ArrayList<>();
+    private List<WarehouseLayerView> warehouseLayers = new ArrayList<>();
 
     public String getContainerStatus() { return containerStatus; }
     public void setContainerStatus(String containerStatus) { this.containerStatus = containerStatus; }
@@ -44,4 +46,8 @@ public class DashboardSnapshot {
     public void setRefreshedAt(String refreshedAt) { this.refreshedAt = refreshedAt; }
     public List<TableStorageView> getTableStorage() { return tableStorage; }
     public void setTableStorage(List<TableStorageView> tableStorage) { this.tableStorage = tableStorage; }
+    public List<ServiceStatus> getServiceStatuses() { return serviceStatuses; }
+    public void setServiceStatuses(List<ServiceStatus> serviceStatuses) { this.serviceStatuses = serviceStatuses; }
+    public List<WarehouseLayerView> getWarehouseLayers() { return warehouseLayers; }
+    public void setWarehouseLayers(List<WarehouseLayerView> warehouseLayers) { this.warehouseLayers = warehouseLayers; }
 }

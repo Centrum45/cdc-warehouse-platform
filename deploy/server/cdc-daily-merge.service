@@ -1,0 +1,12 @@
+[Unit]
+Description=CDC Warehouse Daily ODS Merge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=cdc
+Group=cdc
+WorkingDirectory=/opt/cdc-warehouse-platform
+EnvironmentFile=/etc/cdc-warehouse/jobs.env
+ExecStart=/opt/cdc-warehouse-platform/deploy/server/run_daily_merge.sh

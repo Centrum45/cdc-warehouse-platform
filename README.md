@@ -1,14 +1,18 @@
 # CDC Warehouse Platform
 
-Binlog-driven warehouse demo based on:
+Binlog-driven warehouse platform based on:
 
 ```text
 MySQL -> Maxwell -> Kafka -> ods_binlog -> ODS snapshot -> DIM/DWD/DWS/DWT/ADS
                          -> Kudu/Impala realtime path
 ```
 
-This repo is a runnable local reconstruction of the architecture. Heavy systems
-are represented with compatible local interfaces:
+This repo supports two deployment modes:
+
+- Local debug: Docker Compose starts MySQL, Maxwell, Kafka, HDFS, Hive, DolphinScheduler, SparkStreaming, and SpringBoot Admin.
+- Server production: deploy SpringBoot and long-running jobs directly to Linux servers with systemd, while connecting to real MySQL/Kafka/HDFS/Hive/DolphinScheduler.
+
+Local-compatible interfaces:
 
 - HDFS: local file lake `data/lake` or Docker HDFS `hdfs://localhost:8020/warehouse`
 - Kafka: JSONL event files or Docker Kafka
@@ -17,7 +21,7 @@ are represented with compatible local interfaces:
 - Platform: SpringBoot + Freemarker skeleton
 - Scheduler: DolphinScheduler workflow definitions
 
-## Quick Start
+## Local Quick Start
 
 ```bash
 cd cdc-warehouse-platform
@@ -104,10 +108,15 @@ POST /tasks        save Spark task config
 POST /replay       create replay command and persist replay record
 ```
 
-Docker demo:
+Docker local stack:
 
 ```bash
+./scripts/local_smoke.sh
+
+# or step by step
 ./scripts/docker_up.sh
+./scripts/init_hdfs_hive.sh
+./scripts/check_local_stack.sh
 ./scripts/docker_seed_change.sh
 ./scripts/kafka_to_jsonl.sh
 ./scripts/docker_down.sh
@@ -133,10 +142,34 @@ Platform API can browse HDFS by setting:
 LAKE_ROOT=hdfs://localhost:8020/warehouse BIZ_DT=2026-07-07 python3 platform_api/main.py
 ```
 
-See:
+Deployment docs:
 
 ```text
 docs/docker_runbook.md
+docs/deployment_profiles.md
+deploy/server/README.md
+```
+
+## Server Deployment
+
+Install to a Linux server without Kubernetes:
+
+```bash
+sudo deploy/server/install.sh
+sudo vim /etc/cdc-warehouse/admin.env
+sudo vim /etc/cdc-warehouse/jobs.env
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh start
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh health
+```
+
+Service operations:
+
+```bash
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh status
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh logs cdc-spark-streaming.service
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh smoke --biz-dt 2026-07-07
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh merge
+systemctl list-timers | grep cdc-daily-merge
 ```
 
 Trade/user demo pipeline:

@@ -1,5 +1,6 @@
 package com.example.warehouse.service;
 
+import com.example.warehouse.config.WarehouseProperties;
 import com.example.warehouse.model.TableMetadata;
 import com.example.warehouse.repository.TableMetadataRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -19,10 +20,14 @@ public class MetadataService {
 
     private final TableMetadataRepository tableMetadataRepository;
     private final ObjectMapper objectMapper;
+    private final CommandExecutorService commandExecutorService;
+    private final WarehouseProperties warehouseProperties;
 
-    public MetadataService(TableMetadataRepository tableMetadataRepository, ObjectMapper objectMapper) {
+    public MetadataService(TableMetadataRepository tableMetadataRepository, ObjectMapper objectMapper, CommandExecutorService commandExecutorService, WarehouseProperties warehouseProperties) {
         this.tableMetadataRepository = tableMetadataRepository;
         this.objectMapper = objectMapper;
+        this.commandExecutorService = commandExecutorService;
+        this.warehouseProperties = warehouseProperties;
     }
 
     public List<TableMetadata> listTables() {
@@ -30,12 +35,15 @@ public class MetadataService {
         if (!tables.isEmpty()) {
             return tables;
         }
-        log.info("MySQL not available, reading from local fallback: {}", FALLBACK_PATH);
+        if (!warehouseProperties.getMysql().isFallbackDemoData()) {
+            throw new IllegalStateException("No table metadata from MySQL and fallback is disabled");
+        }
+        log.info("MySQL metadata unavailable or empty, reading local fallback: {}", FALLBACK_PATH);
         return loadFromJsonFile();
     }
 
     private List<TableMetadata> loadFromJsonFile() {
-        File file = new File(FALLBACK_PATH);
+        File file = new File(commandExecutorService.getProjectRoot(), FALLBACK_PATH);
         if (!file.exists()) {
             log.warn("Fallback file not found: {}", FALLBACK_PATH);
             return Collections.emptyList();

@@ -79,7 +79,8 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-cdc_warehouse_admin}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-cdc_warehouse_admin}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       WAREHOUSE_PROJECT_ROOT: /workspace
@@ -89,7 +90,10 @@ services:
       - ..:/workspace
 
   spark-streaming:
-    image: confluentinc/cp-kafka:7.6.1
+    build:
+      context: ..
+      dockerfile: docker/spark-streaming/Dockerfile
+    image: cdc-warehouse-spark-streaming:dev
     container_name: cdc-warehouse-spark-streaming
     depends_on:
       kafka:
@@ -97,12 +101,32 @@ services:
       maxwell:
         condition: service_started
     working_dir: /workspace
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-cdc.incremental.binlog}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      LAKE_ROOT: ${LAKE_ROOT:-hdfs://hdfs-namenode:8020/warehouse}
+      SPARK_STREAMING_INTERVAL_SECONDS: ${SPARK_STREAMING_INTERVAL_SECONDS:-5}
+      SPARK_STREAMING_MAX_MESSAGES: ${SPARK_STREAMING_MAX_MESSAGES:-500}
+      SPARK_STREAMING_TIMEOUT_MS: ${SPARK_STREAMING_TIMEOUT_MS:-10000}
     volumes:
       - ..:/workspace
+    healthcheck:
+      test: ["CMD-SHELL", "python3 --version >/dev/null && kafka-topics --bootstrap-server kafka:9092 --list >/dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
     command:
       - sh
       - -c
-      - python3 scripts/spark_streaming_kafka_to_hdfs_loop.py --bootstrap-server kafka:9092 --lake-root "${LAKE_ROOT:-hdfs://hdfs-namenode:8020/warehouse}" --interval-seconds 5 --max-messages 500
+      - |
+        python3 scripts/spark_streaming_kafka_to_hdfs_loop.py \
+          --topic "$${KAFKA_TOPIC}" \
+          --bootstrap-server "$${KAFKA_BOOTSTRAP_SERVERS}" \
+          --lake-root "$${LAKE_ROOT}" \
+          --interval-seconds "$${SPARK_STREAMING_INTERVAL_SECONDS}" \
+          --max-messages "$${SPARK_STREAMING_MAX_MESSAGES}" \
+          --timeout-ms "$${SPARK_STREAMING_TIMEOUT_MS}"
 
   dolphinscheduler:
     image: apache/dolphinscheduler-standalone-server:3.2.1

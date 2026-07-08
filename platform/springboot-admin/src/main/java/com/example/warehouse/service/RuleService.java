@@ -1,5 +1,6 @@
 package com.example.warehouse.service;
 
+import com.example.warehouse.config.WarehouseProperties;
 import com.example.warehouse.model.RuleRecord;
 import com.example.warehouse.repository.RuleRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -19,10 +20,14 @@ public class RuleService {
 
     private final RuleRepository ruleRepository;
     private final ObjectMapper objectMapper;
+    private final CommandExecutorService commandExecutorService;
+    private final WarehouseProperties warehouseProperties;
 
-    public RuleService(RuleRepository ruleRepository, ObjectMapper objectMapper) {
+    public RuleService(RuleRepository ruleRepository, ObjectMapper objectMapper, CommandExecutorService commandExecutorService, WarehouseProperties warehouseProperties) {
         this.ruleRepository = ruleRepository;
         this.objectMapper = objectMapper;
+        this.commandExecutorService = commandExecutorService;
+        this.warehouseProperties = warehouseProperties;
     }
 
     public List<RuleRecord> listRules() {
@@ -30,12 +35,15 @@ public class RuleService {
         if (!rules.isEmpty()) {
             return rules;
         }
-        log.info("MySQL not available, reading from local fallback: {}", FALLBACK_PATH);
+        if (!warehouseProperties.getMysql().isFallbackDemoData()) {
+            throw new IllegalStateException("No sensitive rules from MySQL and fallback is disabled");
+        }
+        log.info("MySQL sensitive rules unavailable or empty, reading local fallback: {}", FALLBACK_PATH);
         return loadFromJsonFile();
     }
 
     private List<RuleRecord> loadFromJsonFile() {
-        File file = new File(FALLBACK_PATH);
+        File file = new File(commandExecutorService.getProjectRoot(), FALLBACK_PATH);
         if (!file.exists()) {
             log.warn("Fallback file not found: {}", FALLBACK_PATH);
             return Collections.emptyList();

@@ -1,5 +1,6 @@
 package com.example.warehouse.service;
 
+import com.example.warehouse.config.WarehouseProperties;
 import com.example.warehouse.model.SparkTaskConfig;
 import com.example.warehouse.repository.TaskRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -19,10 +20,14 @@ public class TaskConfigService {
 
     private final TaskRepository taskRepository;
     private final ObjectMapper objectMapper;
+    private final CommandExecutorService commandExecutorService;
+    private final WarehouseProperties warehouseProperties;
 
-    public TaskConfigService(TaskRepository taskRepository, ObjectMapper objectMapper) {
+    public TaskConfigService(TaskRepository taskRepository, ObjectMapper objectMapper, CommandExecutorService commandExecutorService, WarehouseProperties warehouseProperties) {
         this.taskRepository = taskRepository;
         this.objectMapper = objectMapper;
+        this.commandExecutorService = commandExecutorService;
+        this.warehouseProperties = warehouseProperties;
     }
 
     public List<SparkTaskConfig> listTasks() {
@@ -30,12 +35,15 @@ public class TaskConfigService {
         if (!tasks.isEmpty()) {
             return tasks;
         }
-        log.info("MySQL not available, reading from local fallback: {}", FALLBACK_PATH);
+        if (!warehouseProperties.getMysql().isFallbackDemoData()) {
+            throw new IllegalStateException("No task config from MySQL and fallback is disabled");
+        }
+        log.info("MySQL task config unavailable or empty, reading local fallback: {}", FALLBACK_PATH);
         return loadFromJsonFile();
     }
 
     private List<SparkTaskConfig> loadFromJsonFile() {
-        File file = new File(FALLBACK_PATH);
+        File file = new File(commandExecutorService.getProjectRoot(), FALLBACK_PATH);
         if (!file.exists()) {
             log.warn("Fallback file not found: {}", FALLBACK_PATH);
             return Collections.emptyList();
