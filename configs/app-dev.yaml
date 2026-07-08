@@ -1,0 +1,25 @@
+# CDC Warehouse Platform — Development environment overrides
+# Merged on top of app.yaml when ENVIRONMENT=dev (default)
+
+storage:
+  type: local
+  warehouse_root: data/lake
+
+pipeline:
+  default_process_date: "2026-07-08"
+  lookback_days: 1
+
+delay_gate:
+  enabled: true
+  max_delay_seconds: 900
+  progress_root: data/progress
+
+dolphinscheduler:
+  endpoint: http://localhost:12345/dolphinscheduler
+  token: ""
+  audit_mode: true
+  audit_dir: data/dolphinscheduler/audit
+
+logging:
+  level: DEBUG
+  format: text

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -72,8 +73,8 @@ def main() -> None:
     parser.add_argument("--output", default=None)
     parser.add_argument("--progress-root", default="data/progress")
     parser.add_argument("--container", default="cdc-warehouse-mysql")
-    parser.add_argument("--user", default="root")
-    parser.add_argument("--password", default="root")
+    parser.add_argument("--user", default=os.environ.get("MYSQL_USER", "root"))
+    parser.add_argument("--password", default=os.environ.get("MYSQL_ROOT_PASSWORD", os.environ.get("MYSQL_PASSWORD", "root")))
     parser.add_argument("--merge", action="store_true", help="Run ODS merge after bootstrap sink.")
     parser.add_argument("--replace-binlog", action="store_true", help="Replace ODS binlog partition with bootstrap events instead of append.")
     parser.add_argument("--replace-ods", action="store_true", help="Replace ODS snapshot from current MySQL full data.")

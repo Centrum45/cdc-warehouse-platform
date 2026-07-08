@@ -7,15 +7,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import yaml  # type: ignore[import-untyped]
-
+from configs.loader import load_config
 from warehouse.scheduler.dolphinscheduler.ds_api_client import DolphinSchedulerClient
-
-
-def load_config() -> dict:
-    config_path = ROOT / "configs" / "app.yaml"
-    with open(config_path, encoding="utf-8") as fh:
-        return yaml.safe_load(fh)
 
 
 def main() -> None:

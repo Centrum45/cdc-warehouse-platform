@@ -1,0 +1,14 @@
+# CDC Warehouse Platform — Python dependencies
+# Install: pip install -r requirements.txt
+
+# Core dependencies
+PyYAML>=5.1,<7.0
+
+# Spark (optional — for PySpark dual-mode jobs)
+# Install only when running real Spark:
+# pyspark>=3.3.0
+
+# Kudu / Impala (optional — for realtime warehouse)
+# Install only when connecting to real Kudu/Impala:
+# impyla>=0.18.0
+# thrift-sasl>=0.4.3
