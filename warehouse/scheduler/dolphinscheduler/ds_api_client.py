@@ -5,6 +5,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 
 class DolphinSchedulerClient:
@@ -309,9 +310,10 @@ class DolphinSchedulerClient:
 
         DS 3.x expects userName/userPassword as query parameters, not JSON body.
         """
+        query = urlencode({"userName": username, "userPassword": password})
         resp = self._http(
             "POST",
-            f"/login?userName={username}&userPassword={password}",
+            f"/login?{query}",
         )
         if isinstance(resp, dict) and resp.get("success") and resp.get("data"):
             data = resp["data"]

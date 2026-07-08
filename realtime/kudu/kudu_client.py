@@ -16,10 +16,7 @@ Environment / config:
     KUDU_MASTERS — comma-separated Kudu master addresses (for DDL only)
 """
 
-from __future__ import annotations
-
 import os
-import sys
 from typing import Any
 
 

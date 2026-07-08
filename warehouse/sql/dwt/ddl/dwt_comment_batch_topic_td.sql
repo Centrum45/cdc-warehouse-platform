@@ -1,3 +1,5 @@
+drop table if exists dwt.dwt_comment_batch_topic_td;
+
 create external table if not exists dwt.dwt_comment_batch_topic_td (
   batchtype string,
   total_batch_cnt bigint,
@@ -5,4 +7,6 @@ create external table if not exists dwt.dwt_comment_batch_topic_td (
   latest_batch_time string
 )
 partitioned by (dt string)
-stored as parquet;
+row format delimited fields terminated by ','
+stored as textfile
+location '/warehouse/dwt/dwt_comment_batch_topic_td';

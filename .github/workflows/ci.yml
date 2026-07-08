@@ -79,7 +79,12 @@ jobs:
 
       - name: Check syntax (compile all .py files)
         run: |
-          find . -name "*.py" -not -path "./.git/*" -print0 | xargs -0 python -m py_compile
+          find . -name "*.py" \
+            -not -path "./.git/*" \
+            -not -path "./docker/hadoop/dist/*" \
+            -not -path "./docker/hive/dist/*" \
+            -not -path "./data/*" \
+            -print0 | xargs -0 python -m py_compile
 
       - name: Check imports (dry-run)
         run: |

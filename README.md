@@ -10,9 +10,9 @@ MySQL -> Maxwell -> Kafka -> ods_binlog -> ODS snapshot -> DIM/DWD/DWS/DWT/ADS
 This repo is a runnable local reconstruction of the architecture. Heavy systems
 are represented with compatible local interfaces:
 
-- HDFS: `data/lake`
-- Kafka: JSONL event files
-- Hive/Spark SQL: generated SQL plus local Python merge job
+- HDFS: local file lake `data/lake` or Docker HDFS `hdfs://localhost:8020/warehouse`
+- Kafka: JSONL event files or Docker Kafka
+- Hive/Spark SQL: generated SQL, local merge job, and Docker Hive/PySpark E2E
 - Kudu/Impala: DDL/query placeholders
 - Platform: SpringBoot + Freemarker skeleton
 - Scheduler: DolphinScheduler workflow definitions
@@ -111,6 +111,26 @@ Docker demo:
 ./scripts/docker_seed_change.sh
 ./scripts/kafka_to_jsonl.sh
 ./scripts/docker_down.sh
+```
+
+Full Docker HDFS/Hive E2E:
+
+```bash
+./scripts/download_hadoop_hive.sh
+./scripts/run_e2e_hdfs_pipeline.sh
+```
+
+This verifies:
+
+```text
+MySQL insert -> Maxwell -> Kafka -> SparkStreaming -> HDFS ods_binlog
+-> PySpark ODS merge -> Hive ODS -> DIM/DWD/DWS/DWT/ADS
+```
+
+Platform API can browse HDFS by setting:
+
+```bash
+LAKE_ROOT=hdfs://localhost:8020/warehouse BIZ_DT=2026-07-07 python3 platform_api/main.py
 ```
 
 See:

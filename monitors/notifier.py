@@ -14,8 +14,6 @@ Configure webhooks in configs/app.yaml or via environment variables:
   SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / SMTP_FROM / SMTP_TO
 """
 
-from __future__ import annotations
-
 import json
 import os
 import smtplib

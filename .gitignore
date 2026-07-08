@@ -13,6 +13,9 @@ data/lake/ods_pyspark/
 data/alerts/
 data/dolphinscheduler/
 data/monitor/
+data/hdfs/
+data/hive/
+data/ops/
 .idea/
 target/
 .env

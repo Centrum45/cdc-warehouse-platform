@@ -1,3 +1,5 @@
+drop table if exists dim.dim_user_info;
+
 create external table if not exists dim.dim_user_info (
   user_id bigint,
   user_name string,
@@ -6,4 +8,6 @@ create external table if not exists dim.dim_user_info (
   register_time string
 )
 partitioned by (dt string)
-stored as parquet;
+row format delimited fields terminated by ','
+stored as textfile
+location '/warehouse/dim/dim_user_info';

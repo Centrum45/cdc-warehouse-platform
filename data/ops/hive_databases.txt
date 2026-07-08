@@ -1,1 +1,0 @@
-WARNING: log4j.properties is not found. HADOOP_CONF_DIR may be incomplete.

@@ -59,6 +59,10 @@ def run_pyspark_merge(metadata_path: str, lake_root: str, process_dt: str, maste
         .where((col("rn") == 1) & (col("binlog_type") != 3))
         .select(*columns, "dt")
     )
+    # Materialize before overwriting touched ODS partitions. Otherwise Spark may
+    # lazily read files from the same directory it is deleting for overwrite.
+    merged = merged.cache()
+    merged.count()
 
     for dt in affected_dt:
         target_dir = f"{lake_root}/ods/db={database}/table={table}/dt={dt}"
@@ -76,8 +80,11 @@ def run_pyspark_merge(metadata_path: str, lake_root: str, process_dt: str, maste
                     raise RuntimeError(f"missing spark csv part file: {tmp_path}")
                 target_file.write_bytes(part_files[0].read_bytes())
 
-    spark.stop()
-    return f"{lake_root}/ods/db={database}/table={table}" if is_hdfs_root(lake_root) else str(Path(lake_root) / "ods" / f"db={database}" / f"table={table}")
+    try:
+        return f"{lake_root}/ods/db={database}/table={table}" if is_hdfs_root(lake_root) else str(Path(lake_root) / "ods" / f"db={database}" / f"table={table}")
+    finally:
+        merged.unpersist()
+        spark.stop()
 
 
 def main() -> None:

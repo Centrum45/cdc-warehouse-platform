@@ -18,12 +18,34 @@ from urllib.parse import urlparse, parse_qs
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from storage.hdfs_web import WebHdfsLake, is_hdfs_root
+
 METADATA_TABLES = ROOT / "metadata" / "tables"
 METADATA_DBA = ROOT / "metadata" / "dba"
 METADATA_RULES = ROOT / "metadata" / "rules"
 DATA_PLATFORM = ROOT / "data" / "platform"
-LAKE_ROOT = ROOT / "data" / "lake"
+LAKE_ROOT = os.environ.get("LAKE_ROOT", str(ROOT / "data" / "lake"))
 MONITOR_CSV = ROOT / "data" / "monitor" / "monitor_result.csv"
+ALLOWED_ORIGINS = {
+    origin.strip()
+    for origin in os.environ.get(
+        "API_ALLOWED_ORIGINS",
+        "http://localhost:8080,http://127.0.0.1:8080,http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
+    if origin.strip()
+}
+HIVE_TEXT_COLUMNS = {
+    "ads_comment_dashboard_1d": ["metric_name", "metric_value"],
+    "ads_trade_dashboard_1d": ["metric_name", "metric_value"],
+    "dim_comment_batch_type": ["batchtype", "batchtype_name", "is_priority"],
+    "dim_user_info": ["user_id", "user_name", "mobile", "email", "register_time"],
+    "dwd_comment_batch_detail_di": ["id", "batchnumber", "batchtype", "batchtype_name", "ctime", "utime", "ver"],
+    "dwd_trade_order_detail_di": ["order_id", "user_id", "order_no", "pay_amount", "order_status", "user_name", "ctime", "utime"],
+    "dws_comment_batch_1d": ["batchtype", "batch_cnt", "priority_batch_cnt"],
+    "dws_trade_user_1d": ["user_id", "order_cnt", "pay_amount"],
+    "dwt_comment_batch_topic_td": ["batchtype", "total_batch_cnt", "priority_batch_cnt", "latest_batch_time"],
+    "dwt_trade_user_td": ["user_id", "total_order_cnt", "total_pay_amount", "first_order_date", "last_order_date"],
+}
 
 
 def _load_json(path: Path) -> dict | list:
@@ -45,16 +67,108 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
-def _find_lake_dir(path: Path) -> list[str]:
+def _lake():
+    return WebHdfsLake(LAKE_ROOT) if is_hdfs_root(LAKE_ROOT) else None
+
+
+def _lake_path(*parts: str):
+    lake = _lake()
+    if lake:
+        path = lake.root
+        for part in parts:
+            path = path / part
+        return path
+    path = Path(LAKE_ROOT)
+    for part in parts:
+        path = path / part
+    return path
+
+
+def _lake_exists(path) -> bool:
+    lake = _lake()
+    return lake.exists(path) if lake else Path(path).exists()
+
+
+def _lake_list_dirs(path) -> list[str]:
+    lake = _lake()
+    if lake:
+        return sorted(
+            item.get("pathSuffix", "")
+            for item in lake.list_status(path)
+            if item.get("type") == "DIRECTORY"
+        )
+    if not Path(path).exists():
+        return []
+    return sorted(p.name for p in Path(path).iterdir() if p.is_dir())
+
+
+def _read_lake_csv(path) -> list[dict[str, str]]:
+    lake = _lake()
+    return lake.read_csv(path) if lake else _read_csv(Path(path))
+
+
+def _read_lake_text_rows(path, table_name: str) -> list[dict[str, str]]:
+    lake = _lake()
+    table_key = table_name.rsplit(".", 1)[-1]
+    if str(path).endswith(".csv") or table_key not in HIVE_TEXT_COLUMNS:
+        return _read_lake_csv(path)
+    text = lake.read_text(path) if lake else Path(path).read_text(encoding="utf-8")
+    columns = HIVE_TEXT_COLUMNS[table_key]
+    rows = []
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        values = line.split(",")
+        rows.append({column: values[idx] if idx < len(values) else "" for idx, column in enumerate(columns)})
+    return rows
+
+
+def _find_lake_csv(dt_path):
+    lake = _lake()
+    skip_prefixes = ("_", ".")
+    if lake:
+        for item in sorted(lake.list_status(dt_path), key=lambda row: row.get("pathSuffix", "")):
+            suffix = item.get("pathSuffix", "")
+            if item.get("type") == "FILE" and not suffix.startswith(skip_prefixes) and not suffix.endswith(".crc"):
+                return dt_path / suffix
+        return None
+    data_files = [
+        p for p in sorted(Path(dt_path).iterdir()) if p.is_file()
+        and not p.name.startswith(skip_prefixes)
+        and not p.name.endswith(".crc")
+    ] if Path(dt_path).exists() else []
+    return data_files[0] if data_files else None
+
+
+def _find_lake_dir(path) -> list[str]:
     """List subdirectories stripping partition prefix, e.g. dt=2026-07-06 -> 2026-07-06."""
-    if not path.exists():
+    if not _lake_exists(path):
         return []
     result = []
-    for p in sorted(path.iterdir()):
-        if p.is_dir():
-            name = p.name
-            result.append(name.split("=", 1)[1] if "=" in name else name)
+    for name in _lake_list_dirs(path):
+        result.append(name.split("=", 1)[1] if "=" in name else name)
     return result
+
+
+def _table_entries(layer: str) -> list[dict[str, object]]:
+    layer_path = _lake_path(layer)
+    entries = []
+    for name in _lake_list_dirs(layer_path):
+        child_path = layer_path / name
+        if name.startswith("db="):
+            database = name.split("=", 1)[1]
+            for table_name in _lake_list_dirs(child_path):
+                if not table_name.startswith("table="):
+                    continue
+                table = table_name.split("=", 1)[1]
+                entries.append({"name": f"{database}.{table}", "path": child_path / table_name})
+        else:
+            entries.append({"name": name, "path": child_path})
+    return entries
+
+
+def _origin_allowed(origin: str | None) -> bool:
+    return not origin or origin in ALLOWED_ORIGINS
 
 
 # ── Handler ──────────────────────────────────────────────────────────
@@ -70,9 +184,12 @@ class APIHandler(BaseHTTPRequestHandler):
 
     def _json(self, payload, status: int = 200) -> None:
         body = json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode("utf-8")
+        origin = self.headers.get("Origin")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        if _origin_allowed(origin):
+            self.send_header("Access-Control-Allow-Origin", origin or "null")
+            self.send_header("Vary", "Origin")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -90,13 +207,38 @@ class APIHandler(BaseHTTPRequestHandler):
     def _query(self) -> dict[str, list[str]]:
         return parse_qs(urlparse(self.path).query)
 
+    def _write_allowed(self) -> bool:
+        origin = self.headers.get("Origin")
+        if not _origin_allowed(origin):
+            self._json({"error": "origin not allowed"}, 403)
+            return False
+
+        token = os.environ.get("API_TOKEN")
+        server_host = self.server.server_address[0]
+        local_only = server_host in {"127.0.0.1", "localhost", "::1"}
+        if token:
+            auth_header = self.headers.get("Authorization", "")
+            bearer = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+            supplied = self.headers.get("X-API-Token") or bearer
+            if supplied != token:
+                self._json({"error": "invalid api token"}, 401)
+                return False
+        elif not local_only:
+            self._json({"error": "API_TOKEN required when API_HOST is not localhost"}, 403)
+            return False
+
+        return True
+
     # ── CORS ─────────────────────────────────────────────────────
 
     def do_OPTIONS(self):
+        origin = self.headers.get("Origin")
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        if _origin_allowed(origin):
+            self.send_header("Access-Control-Allow-Origin", origin or "null")
+            self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Token")
         self.end_headers()
 
     # ── routing ──────────────────────────────────────────────────
@@ -118,6 +260,8 @@ class APIHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         parts = self._path_parts()
         if len(parts) >= 2 and parts[0] == "api":
+            if not self._write_allowed():
+                return
             return self._route_post(parts[1:])
         self._json({"error": "not found"}, 404)
 
@@ -347,27 +491,27 @@ class APIHandler(BaseHTTPRequestHandler):
         metrics = {}
 
         # Comment dashboard
-        comment_path = LAKE_ROOT / "ads" / "ads_comment_dashboard_1d" / f"dt={dt}" / "part-00000.csv"
-        for row in _read_csv(comment_path):
-            metrics[row.get("metric_name", "")] = row.get("metric_value", "")
+        comment_dir = _lake_path("ads", "ads_comment_dashboard_1d", f"dt={dt}")
+        comment_path = _find_lake_csv(comment_dir)
+        if comment_path:
+            for row in _read_lake_text_rows(comment_path, "ads_comment_dashboard_1d"):
+                metrics[row.get("metric_name", "")] = row.get("metric_value", "")
 
         # Trade dashboard
-        trade_path = LAKE_ROOT / "ads" / "ads_trade_dashboard_1d" / f"dt={dt}" / "part-00000.csv"
-        for row in _read_csv(trade_path):
-            metrics[row.get("metric_name", "")] = row.get("metric_value", "")
+        trade_dir = _lake_path("ads", "ads_trade_dashboard_1d", f"dt={dt}")
+        trade_path = _find_lake_csv(trade_dir)
+        if trade_path:
+            for row in _read_lake_text_rows(trade_path, "ads_trade_dashboard_1d"):
+                metrics[row.get("metric_name", "")] = row.get("metric_value", "")
 
         # Layer status
         layers_status = {}
         for layer in ["ods", "dim", "dwd", "dws", "dwt", "ads"]:
-            layer_dir = LAKE_ROOT / layer
-            if layer_dir.exists():
-                tables = [d.name for d in layer_dir.iterdir() if d.is_dir()]
-                layers_status[layer] = {
-                    "table_count": len(tables),
-                    "has_data": len(tables) > 0,
-                }
-            else:
-                layers_status[layer] = {"table_count": 0, "has_data": False}
+            tables = _table_entries(layer)
+            layers_status[layer] = {
+                "table_count": len(tables),
+                "has_data": len(tables) > 0,
+            }
 
         return self._json({
             "biz_dt": dt,
@@ -385,36 +529,36 @@ class APIHandler(BaseHTTPRequestHandler):
         if not parts or not parts[0]:
             # list all layers
             layers = []
-            for d in sorted(LAKE_ROOT.iterdir()):
-                if d.is_dir():
-                    tables = [t.name for t in d.iterdir() if t.is_dir()]
-                    layers.append({"layer": d.name, "tables": tables, "table_count": len(tables)})
+            for layer in _lake_list_dirs(_lake_path()):
+                tables = [str(item["name"]) for item in _table_entries(layer)]
+                layers.append({"layer": layer, "tables": tables, "table_count": len(tables)})
             return self._json({"layers": layers})
 
         layer = parts[0]
-        layer_dir = LAKE_ROOT / layer
-        if not layer_dir.exists():
+        layer_dir = _lake_path(layer)
+        if not _lake_exists(layer_dir):
             return self._json({"error": f"layer not found: {layer}"}, 404)
 
         if len(parts) == 1:
             # list tables in layer
             tables = []
-            for t in sorted(layer_dir.iterdir()):
-                if t.is_dir():
-                    partitions = _find_lake_dir(t)
-                    tables.append({"table": t.name, "partitions": partitions,
-                                   "latest_partition": partitions[-1] if partitions else None})
+            for item in _table_entries(layer):
+                partitions = _find_lake_dir(item["path"])
+                tables.append({"table": item["name"], "partitions": partitions,
+                               "latest_partition": partitions[-1] if partitions else None})
             return self._json({"layer": layer, "tables": tables})
 
         # specific table
         table = parts[1]
-        table_dir = layer_dir / table
-        if not table_dir.exists():
+        entries = _table_entries(layer)
+        match = next((item for item in entries if item["name"] == table), None)
+        if not match:
             return self._json({"error": f"table not found: {layer}/{table}"}, 404)
+        table_dir = match["path"]
 
         # try specific dt, or latest
         dt_dir = table_dir / f"dt={dt}"
-        if not dt_dir.exists():
+        if not _lake_exists(dt_dir):
             partitions = _find_lake_dir(table_dir)
             if partitions:
                 dt_dir = table_dir / f"dt={partitions[-1]}"
@@ -422,11 +566,11 @@ class APIHandler(BaseHTTPRequestHandler):
             else:
                 return self._json({"error": f"no data for {layer}/{table}"}, 404)
 
-        csv_path = dt_dir / "part-00000.csv"
-        if not csv_path.exists():
-            return self._json({"error": f"no CSV at {csv_path}"}, 404)
+        csv_path = _find_lake_csv(dt_dir)
+        if not csv_path:
+            return self._json({"error": f"no CSV at {dt_dir}"}, 404)
 
-        rows = _read_csv(csv_path)
+        rows = _read_lake_text_rows(csv_path, table)
         return self._json({
             "layer": layer, "table": table, "dt": dt,
             "rows": rows, "count": len(rows),
@@ -440,16 +584,11 @@ class APIHandler(BaseHTTPRequestHandler):
 
         layers = []
         for layer_name in ["ods", "dim", "dwd", "dws", "dwt", "ads"]:
-            layer_dir = LAKE_ROOT / layer_name
             tables_info = []
-            if layer_dir.exists():
-                for t in sorted(layer_dir.iterdir()):
-                    if t.is_dir():
-                        p = t / f"dt={dt}" / "part-00000.csv"
-                        row_count = 0
-                        if p.exists():
-                            row_count = len(_read_csv(p))
-                        tables_info.append({"table": t.name, "rows": row_count, "has_data": row_count > 0})
+            for item in _table_entries(layer_name):
+                p = _find_lake_csv(item["path"] / f"dt={dt}")
+                row_count = len(_read_lake_text_rows(p, item["name"])) if p else 0
+                tables_info.append({"table": item["name"], "rows": row_count, "has_data": row_count > 0})
             layers.append({
                 "layer": layer_name,
                 "tables": tables_info,
@@ -466,16 +605,9 @@ class APIHandler(BaseHTTPRequestHandler):
         dt = os.environ.get("BIZ_DT", "2026-07-06")
         status = {}
         for layer in ["ods", "dim", "dwd", "dws", "dwt", "ads"]:
-            layer_dir = LAKE_ROOT / layer
-            has_data = False
-            table_count = 0
-            if layer_dir.exists():
-                tables = [d for d in layer_dir.iterdir() if d.is_dir()]
-                table_count = len(tables)
-                has_data = any(
-                    (t / f"dt={dt}" / "part-00000.csv").exists()
-                    for t in tables
-                )
+            tables = _table_entries(layer)
+            table_count = len(tables)
+            has_data = any(_find_lake_csv(item["path"] / f"dt={dt}") for item in tables)
             status[layer] = {"ready": has_data, "table_count": table_count}
         return self._json({"pipeline_status": status, "biz_dt": dt})
 

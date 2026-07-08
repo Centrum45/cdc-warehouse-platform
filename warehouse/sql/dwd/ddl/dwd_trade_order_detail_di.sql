@@ -1,3 +1,5 @@
+drop table if exists dwd.dwd_trade_order_detail_di;
+
 create external table if not exists dwd.dwd_trade_order_detail_di (
   order_id bigint,
   user_id bigint,
@@ -9,4 +11,6 @@ create external table if not exists dwd.dwd_trade_order_detail_di (
   utime string
 )
 partitioned by (dt string)
-stored as parquet;
+row format delimited fields terminated by ','
+stored as textfile
+location '/warehouse/dwd/dwd_trade_order_detail_di';

@@ -8,7 +8,8 @@ PASS="dolphinscheduler123"
 PROJECT="cdc_warehouse"
 
 echo "=== Login ==="
-RESP=$(curl -s -X POST "${DS_URL}/login?userName=${ADMIN}&userPassword=${PASS}")
+QUERY=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.urlencode({"userName": sys.argv[1], "userPassword": sys.argv[2]}))' "$ADMIN" "$PASS")
+RESP=$(curl -s -X POST "${DS_URL}/login?${QUERY}")
 TOKEN=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['sessionId'])")
 echo "Token: ${TOKEN:0:20}..."
 

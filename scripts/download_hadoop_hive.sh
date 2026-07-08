@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 
 hadoop_version="${HADOOP_VERSION:-3.3.6}"
 hive_version="${HIVE_VERSION:-3.1.3}"
-base_urls="${APACHE_MIRRORS:-https://mirrors.tuna.tsinghua.edu.cn/apache https://mirrors.aliyun.com/apache https://archive.apache.org/dist}"
+base_urls="${APACHE_MIRRORS:-https://repo.huaweicloud.com/apache https://mirrors.tuna.tsinghua.edu.cn/apache https://mirrors.aliyun.com/apache https://archive.apache.org/dist}"
 hadoop_dir="docker/hadoop/dist"
 hive_dir="docker/hive/dist"
 

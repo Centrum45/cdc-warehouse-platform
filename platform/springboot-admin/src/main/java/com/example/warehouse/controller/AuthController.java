@@ -37,6 +37,8 @@ public class AuthController {
             body.put("username", request.getUsername());
             return ResponseEntity.ok(body);
         }
-        return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
+        Map<String, String> body = new HashMap<>();
+        body.put("error", "Invalid credentials");
+        return ResponseEntity.status(401).body(body);
     }
 }
