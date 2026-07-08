@@ -15,3 +15,9 @@ delay_gate:
   enabled: true
   max_delay_seconds: 900
   progress_root: data/progress
+
+dolphinscheduler:
+  endpoint: http://localhost:12345/dolphinscheduler
+  token: ""
+  audit_mode: false
+  audit_dir: data/dolphinscheduler/audit

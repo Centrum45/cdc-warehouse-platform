@@ -7,19 +7,43 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import yaml  # type: ignore[import-untyped]
+
 from warehouse.scheduler.dolphinscheduler.ds_api_client import DolphinSchedulerClient
 
 
+def load_config() -> dict:
+    config_path = ROOT / "configs" / "app.yaml"
+    with open(config_path, encoding="utf-8") as fh:
+        return yaml.safe_load(fh)
+
+
 def main() -> None:
-    process_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("warehouse/scheduler/dolphinscheduler/warehouse_daily_process.json")
+    cfg = load_config()
+    ds_cfg = cfg.get("dolphinscheduler", {})
+
+    process_path = (
+        Path(sys.argv[1])
+        if len(sys.argv) > 1
+        else ROOT / "warehouse/scheduler/dolphinscheduler/warehouse_daily_process.json"
+    )
+
     process = json.loads(process_path.read_text(encoding="utf-8"))
-    client = DolphinSchedulerClient("http://localhost:12345/dolphinscheduler")
-    project = process["projectName"]
+    project_name = process["projectName"]
     process_name = process["processDefinitionName"]
-    print(client.create_project(project, "CDC warehouse demo project"))
-    print(client.create_or_update_process(project, process))
-    print(client.online_process(project, process_name))
-    print(client.set_schedule(project, process_name, process["schedule"]))
+    cron_expr = process["schedule"]
+
+    client = DolphinSchedulerClient(
+        endpoint=ds_cfg.get("endpoint", "http://localhost:12345/dolphinscheduler"),
+        token=ds_cfg.get("token", ""),
+        audit_mode=ds_cfg.get("audit_mode", False),
+        audit_dir=ds_cfg.get("audit_dir", "data/dolphinscheduler/audit"),
+    )
+
+    print("[1/4] create project  :", client.create_project(project_name, "CDC warehouse demo project"))
+    print("[2/4] upsert process  :", client.create_or_update_process(project_name, process))
+    print("[3/4] online process  :", client.online_process(project_name, process_name))
+    print("[4/4] set schedule    :", client.set_schedule(project_name, process_name, cron_expr))
 
 
 if __name__ == "__main__":
