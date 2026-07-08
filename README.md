@@ -145,6 +145,7 @@ LAKE_ROOT=hdfs://localhost:8020/warehouse BIZ_DT=2026-07-07 python3 platform_api
 Deployment docs:
 
 ```text
+docs/deployment_guide.md
 docs/docker_runbook.md
 docs/deployment_profiles.md
 deploy/server/README.md
