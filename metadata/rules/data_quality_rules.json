@@ -1,0 +1,13 @@
+{
+  "row_count": {
+    "min_ratio": 0.99,
+    "max_ratio": 1.01
+  },
+  "null_rate": {
+    "max_null_rate": 0.05,
+    "skip_columns": ["ctime", "utime"]
+  },
+  "partition": {
+    "enabled": true
+  }
+}

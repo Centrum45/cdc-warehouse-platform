@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "ruleCategory": "sensitive",
+    "columnName": "mobile",
+    "action": "md5",
+    "enabled": true
+  },
+  {
+    "id": 2,
+    "ruleCategory": "sensitive",
+    "columnName": "phone",
+    "action": "md5",
+    "enabled": true
+  },
+  {
+    "id": 3,
+    "ruleCategory": "sensitive",
+    "columnName": "id_card",
+    "action": "md5",
+    "enabled": true
+  },
+  {
+    "id": 4,
+    "ruleCategory": "sensitive",
+    "columnName": "email",
+    "action": "default_value",
+    "enabled": true
+  }
+]

@@ -16,3 +16,14 @@ warehouse:
   project-root: ../..
   mysql:
     fallback-demo-data: true
+  auth:
+    admin-user: admin
+    admin-pass: admin123
+    jwt-secret: cdc-warehouse-platform-secret-key-2026-minimum-256-bit-length
+    jwt-expiration-ms: 86400000
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs

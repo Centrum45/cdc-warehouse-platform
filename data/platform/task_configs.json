@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "taskName": "ods_merge_basiccomment_avatar_commentbatchsource",
+    "taskType": "SPARK_SQL",
+    "command": "hive -f warehouse/sql/ods/merge/merge_ods_basiccomment_avatar_commentbatchsource_dic.sql",
+    "schedule": "daily",
+    "priority": 1,
+    "enabled": true,
+    "description": "ODS merge for comment batch source"
+  },
+  {
+    "id": 2,
+    "taskName": "ods_merge_trade_order_info",
+    "taskType": "SPARK_SQL",
+    "command": "hive -f warehouse/sql/ods/merge/merge_ods_trade_order_info_dic.sql",
+    "schedule": "daily",
+    "priority": 1,
+    "enabled": true,
+    "description": "ODS merge for trade order info"
+  },
+  {
+    "id": 3,
+    "taskName": "ods_merge_user_user_info",
+    "taskType": "SPARK_SQL",
+    "command": "hive -f warehouse/sql/ods/merge/merge_ods_user_user_info_dic.sql",
+    "schedule": "daily",
+    "priority": 1,
+    "enabled": true,
+    "description": "ODS merge for user info"
+  },
+  {
+    "id": 4,
+    "taskName": "warehouse_daily_process",
+    "taskType": "DOLPHIN_SCHEDULER",
+    "command": "python3 scripts/publish_dolphinscheduler.py",
+    "schedule": "daily",
+    "priority": 2,
+    "enabled": true,
+    "description": "Full warehouse daily pipeline (12 tasks)"
+  }
+]

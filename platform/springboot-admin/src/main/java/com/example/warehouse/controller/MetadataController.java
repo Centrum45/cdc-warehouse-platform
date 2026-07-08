@@ -5,6 +5,8 @@ import com.example.warehouse.model.TableMetadata;
 import com.example.warehouse.service.DashboardService;
 import com.example.warehouse.service.MetadataService;
 import com.example.warehouse.service.OnboardingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller
+@Tag(name = "Metadata", description = "Table metadata and dashboard")
 public class MetadataController {
     private final MetadataService metadataService;
     private final DashboardService dashboardService;
@@ -26,12 +29,14 @@ public class MetadataController {
     }
 
     @GetMapping("/")
+    @Operation(summary = "Dashboard home page")
     public String index(Model model) {
         populateDashboard(model, defaultOnboardRequest());
         return "index";
     }
 
     @PostMapping("/")
+    @Operation(summary = "Execute onboarding from dashboard")
     public String onboardFromDashboard(@ModelAttribute OnboardRequest request, Model model) {
         model.addAttribute("result", onboardingService.execute(request));
         populateDashboard(model, request);
@@ -40,6 +45,7 @@ public class MetadataController {
 
     @GetMapping("/api/dashboard")
     @ResponseBody
+    @Operation(summary = "Get dashboard snapshot as JSON")
     public Object dashboard() {
         return dashboardService.snapshot(metadataService.listTables());
     }

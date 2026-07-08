@@ -1,0 +1,76 @@
+{
+  "monitors": [
+    {
+      "id": 1,
+      "monitorType": "delay",
+      "name": "Delay Gate",
+      "command": "python3 monitors/run_monitor_suite.py",
+      "schedule": "every_5_minutes",
+      "enabled": true,
+      "description": "Check binlog sync delay against threshold"
+    },
+    {
+      "id": 2,
+      "monitorType": "field",
+      "name": "Field Drift Monitor",
+      "command": "python3 monitors/field_monitor_job.py",
+      "schedule": "hourly",
+      "enabled": true,
+      "description": "Compare platform metadata with DBA metadata, detect column drift"
+    },
+    {
+      "id": 3,
+      "monitorType": "special_value",
+      "name": "Special Value Monitor",
+      "command": "python3 -c \"from monitors.special_value_sql_builder import build_special_value_sql; print(build_special_value_sql('ods', 'basiccomment.avatar_commentbatchsource', '2026-07-06'))\"",
+      "schedule": "daily",
+      "enabled": true,
+      "description": "Check increasing fields, not-null fields, special values"
+    },
+    {
+      "id": 4,
+      "monitorType": "table_update",
+      "name": "Table Update Monitor",
+      "command": "python3 monitors/table_update_monitor_job.py",
+      "schedule": "hourly",
+      "enabled": true,
+      "description": "Check max(utime) to detect table switch or migration"
+    },
+    {
+      "id": 5,
+      "monitorType": "plaintext",
+      "name": "Plaintext Guard",
+      "command": "python3 -c \"from monitors.sensitive_text_monitor import detect; print(detect('data/lake'))\"",
+      "schedule": "every_10_minutes",
+      "enabled": true,
+      "description": "Detect sensitive values (phone, ID card, email) in ingested data"
+    },
+    {
+      "id": 6,
+      "monitorType": "row_count",
+      "name": "Row Count Monitor",
+      "command": "python3 monitors/run_monitor_suite.py",
+      "schedule": "daily",
+      "enabled": true,
+      "description": "Compare row counts between ODS and downstream layers"
+    },
+    {
+      "id": 7,
+      "monitorType": "null_rate",
+      "name": "Null Rate Monitor",
+      "command": "python3 monitors/run_monitor_suite.py",
+      "schedule": "daily",
+      "enabled": true,
+      "description": "Check per-column null ratio against thresholds"
+    },
+    {
+      "id": 8,
+      "monitorType": "partition",
+      "name": "Partition Completeness Monitor",
+      "command": "python3 monitors/run_monitor_suite.py",
+      "schedule": "daily",
+      "enabled": true,
+      "description": "Verify all layer partitions exist for each biz_dt"
+    }
+  ]
+}

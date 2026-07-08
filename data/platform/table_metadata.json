@@ -1,0 +1,41 @@
+[
+  {
+    "id": 1,
+    "databaseName": "basiccomment",
+    "tableName": "avatar_commentbatchsource",
+    "primaryKeys": "id",
+    "updateColumn": "utime",
+    "versionColumn": "ver",
+    "hiveDb": "ods",
+    "hiveTable": "ods_basiccomment_avatar_commentbatchsource_dic",
+    "partitionFormat": "dt",
+    "enabled": true,
+    "description": "Comment batch source table from basiccomment database"
+  },
+  {
+    "id": 2,
+    "databaseName": "trade",
+    "tableName": "order_info",
+    "primaryKeys": "id",
+    "updateColumn": "utime",
+    "versionColumn": "ver",
+    "hiveDb": "ods",
+    "hiveTable": "ods_trade_order_info_dic",
+    "partitionFormat": "dt",
+    "enabled": true,
+    "description": "Trade order info table"
+  },
+  {
+    "id": 3,
+    "databaseName": "user",
+    "tableName": "user_info",
+    "primaryKeys": "id",
+    "updateColumn": "utime",
+    "versionColumn": "ver",
+    "hiveDb": "ods",
+    "hiveTable": "ods_user_user_info_dic",
+    "partitionFormat": "dt",
+    "enabled": true,
+    "description": "User info table"
+  }
+]
