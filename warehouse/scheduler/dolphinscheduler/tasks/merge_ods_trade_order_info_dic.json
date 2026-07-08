@@ -1,0 +1,6 @@
+{
+  "command": "spark-sql -f warehouse/sql/ods/merge/merge_ods_trade_order_info_dic.sql",
+  "description": "Merge binlog to ODS snapshot for trade.order_info",
+  "name": "merge_ods_trade_order_info_dic",
+  "type": "SPARK_SQL"
+}

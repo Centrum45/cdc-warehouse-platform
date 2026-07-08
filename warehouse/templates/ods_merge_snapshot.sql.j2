@@ -1,0 +1,18 @@
+insert overwrite table ods.{{ ods_table }}
+partition(dt)
+select {{ select_columns }}
+from (
+  select
+    *,
+    row_number() over(partition by {{ primary_keys }} order by {{ version_column }} desc, binlog_type desc) rn
+  from (
+    {{ changed_binlog_sql }}
+
+    union all
+
+    {{ old_snapshot_sql }}
+  ) t
+) tt
+where tt.rn = 1
+  and tt.binlog_type != 3;
+

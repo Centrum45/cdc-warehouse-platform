@@ -1,0 +1,140 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: cdc-warehouse-mysql
+    command:
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --binlog-row-image=FULL
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: cdc_warehouse_admin
+      TZ: Asia/Shanghai
+    ports:
+      - "13306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: cdc-warehouse-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: cdc-warehouse-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "19092:19092"
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  maxwell:
+    image: zendesk/maxwell:v1.41.2
+    container_name: cdc-warehouse-maxwell
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./maxwell/config.properties:/app/config.properties:ro
+    command: ["bin/maxwell", "--config", "/app/config.properties"]
+
+  admin:
+    build:
+      context: ..
+      dockerfile: docker/springboot-admin/Dockerfile
+    container_name: cdc-warehouse-admin
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/cdc_warehouse_admin?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      WAREHOUSE_PROJECT_ROOT: /workspace
+    ports:
+      - "8080:8080"
+    volumes:
+      - ..:/workspace
+
+  spark-streaming:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: cdc-warehouse-spark-streaming
+    depends_on:
+      kafka:
+        condition: service_healthy
+      maxwell:
+        condition: service_started
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace
+    command:
+      - sh
+      - -c
+      - python3 scripts/spark_streaming_kafka_to_hdfs_loop.py --bootstrap-server kafka:9092 --lake-root "${LAKE_ROOT:-hdfs://hdfs-namenode:8020/warehouse}" --interval-seconds 5 --max-messages 500
+
+  ops-refresh:
+    image: docker:27-cli
+    container_name: cdc-warehouse-ops-refresh
+    depends_on:
+      - kafka
+      - maxwell
+      - spark-streaming
+      - admin
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p data/ops
+        while true; do
+          docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' > data/ops/container_status.txt 2>&1 || true
+          docker logs --tail 120 cdc-warehouse-maxwell > data/ops/maxwell.log 2>&1 || true
+          docker logs --tail 80 cdc-warehouse-kafka > data/ops/kafka.log 2>&1 || true
+          docker logs --tail 80 cdc-warehouse-spark-streaming > data/ops/spark_streaming.log 2>&1 || true
+          docker logs --tail 80 cdc-warehouse-admin > data/ops/admin.log 2>&1 || true
+          docker logs --tail 80 cdc-warehouse-hdfs-namenode > data/ops/hdfs_namenode.log 2>&1 || true
+          docker logs --tail 80 cdc-warehouse-hive-server > data/ops/hive_server.log 2>&1 || true
+          docker exec cdc-warehouse-kafka kafka-topics --bootstrap-server kafka:9092 --list > data/ops/kafka_topics.txt 2>&1 || true
+          docker exec cdc-warehouse-hdfs-namenode hdfs dfs -ls -R /warehouse > data/ops/hdfs_warehouse_ls.txt 2>&1 || true
+          docker exec cdc-warehouse-hive-server beeline -u jdbc:hive2://localhost:10000 -e 'show databases;' > data/ops/hive_databases.txt 2>&1 || true
+          date '+%Y-%m-%d %H:%M:%S' > data/ops/refreshed_at.txt
+          sleep 5
+        done
+
+volumes:
+  mysql_data:

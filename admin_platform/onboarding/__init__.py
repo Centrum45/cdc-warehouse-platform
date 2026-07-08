@@ -1,0 +1,1 @@
+"""MySQL table onboarding pipeline."""

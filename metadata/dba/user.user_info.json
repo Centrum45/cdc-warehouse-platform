@@ -1,0 +1,14 @@
+{
+  "source_database": "user",
+  "source_table": "user_info",
+  "columns": [
+    {"name": "id", "type": "bigint"},
+    {"name": "user_name", "type": "string"},
+    {"name": "mobile", "type": "string"},
+    {"name": "email", "type": "string"},
+    {"name": "register_time", "type": "string"},
+    {"name": "ctime", "type": "string"},
+    {"name": "utime", "type": "string"},
+    {"name": "ver", "type": "int"}
+  ]
+}

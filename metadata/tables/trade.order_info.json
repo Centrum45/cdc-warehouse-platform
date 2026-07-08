@@ -1,0 +1,45 @@
+{
+  "columns": [
+    {
+      "name": "id",
+      "type": "bigint"
+    },
+    {
+      "name": "user_id",
+      "type": "bigint"
+    },
+    {
+      "name": "order_no",
+      "type": "string"
+    },
+    {
+      "name": "pay_amount",
+      "type": "double"
+    },
+    {
+      "name": "order_status",
+      "type": "string"
+    },
+    {
+      "name": "ctime",
+      "type": "string"
+    },
+    {
+      "name": "utime",
+      "type": "string"
+    },
+    {
+      "name": "ver",
+      "type": "int"
+    }
+  ],
+  "ods_binlog_table": "ods_binlog_trade_order_info_di",
+  "ods_table": "ods_trade_order_info_dic",
+  "partition_column": "ctime",
+  "primary_keys": [
+    "id"
+  ],
+  "source_database": "trade",
+  "source_table": "order_info",
+  "version_column": "ver"
+}

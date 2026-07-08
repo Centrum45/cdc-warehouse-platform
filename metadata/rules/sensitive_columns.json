@@ -1,0 +1,9 @@
+{
+  "default_action": "md5",
+  "columns": {
+    "phone": {"action": "md5"},
+    "mobile": {"action": "md5"},
+    "id_card": {"action": "default", "default_value": ""},
+    "email": {"action": "md5"}
+  }
+}

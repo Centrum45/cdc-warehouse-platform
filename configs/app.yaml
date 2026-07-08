@@ -1,0 +1,17 @@
+storage:
+  type: local
+  warehouse_root: data/lake
+
+timezone:
+  source: UTC
+  warehouse: Asia/Shanghai
+  offset_seconds: 28800
+
+pipeline:
+  default_process_date: "2026-07-07"
+  lookback_days: 1
+
+delay_gate:
+  enabled: true
+  max_delay_seconds: 900
+  progress_root: data/progress

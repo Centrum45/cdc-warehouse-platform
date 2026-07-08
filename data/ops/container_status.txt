@@ -1,0 +1,13 @@
+NAMES                           STATUS                 PORTS
+cdc-warehouse-hive-server       Up 3 hours             0.0.0.0:10000->10000/tcp, :::10000->10000/tcp
+cdc-warehouse-hdfs-datanode     Up 3 hours             0.0.0.0:9864->9864/tcp, :::9864->9864/tcp, 0.0.0.0:9866->9866/tcp, :::9866->9866/tcp
+cdc-warehouse-hdfs-namenode     Up 3 hours             0.0.0.0:8020->8020/tcp, :::8020->8020/tcp, 0.0.0.0:9870->9870/tcp, :::9870->9870/tcp
+cdc-warehouse-spark-streaming   Up 2 hours             9092/tcp
+cdc-warehouse-ops-refresh       Up 3 hours             
+cdc-warehouse-maxwell           Up 3 hours             
+cdc-warehouse-admin             Up 3 hours             0.0.0.0:8080->8080/tcp, :::8080->8080/tcp
+cdc-warehouse-kafka             Up 3 hours (healthy)   0.0.0.0:19092->19092/tcp, :::19092->19092/tcp
+cdc-warehouse-mysql             Up 3 hours (healthy)   0.0.0.0:13306->3306/tcp, [::]:13306->3306/tcp
+cdc-warehouse-zookeeper         Up 3 hours             0.0.0.0:2181->2181/tcp, :::2181->2181/tcp
+vibe-trading-vibe-trading-1     Up 3 hours (healthy)   127.0.0.1:8899->8899/tcp
+expense-tracker-mysql           Up 3 hours (healthy)   0.0.0.0:3307->3306/tcp, [::]:3307->3306/tcp

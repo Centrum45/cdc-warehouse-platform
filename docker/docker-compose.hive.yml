@@ -1,0 +1,90 @@
+services:
+  hdfs-namenode:
+    image: eclipse-temurin:8-jre
+    container_name: cdc-warehouse-hdfs-namenode
+    hostname: hdfs-namenode
+    environment:
+      JAVA_HOME: /opt/java/openjdk
+      HADOOP_HOME: /opt/hadoop
+      HADOOP_CONF_DIR: /workspace/docker/hadoop/conf
+      PATH: /opt/hadoop/bin:/opt/hadoop/sbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    ports:
+      - "8020:8020"
+      - "9870:9870"
+    volumes:
+      - ..:/workspace
+      - ../docker/hadoop/dist/hadoop:/opt/hadoop
+      - ../data/hdfs/name:/workspace/data/hdfs/name
+    working_dir: /workspace
+    command:
+      - sh
+      - -c
+      - |
+        test -x /opt/hadoop/bin/hdfs || { echo "missing Hadoop. run ./scripts/download_hadoop_hive.sh"; exit 1; }
+        mkdir -p /workspace/data/hdfs/name
+        if [ ! -d /workspace/data/hdfs/name/current ]; then
+          hdfs namenode -format -force -nonInteractive
+        fi
+        hdfs namenode
+
+  hdfs-datanode:
+    image: eclipse-temurin:8-jre
+    container_name: cdc-warehouse-hdfs-datanode
+    hostname: hdfs-datanode
+    depends_on:
+      - hdfs-namenode
+    environment:
+      JAVA_HOME: /opt/java/openjdk
+      HADOOP_HOME: /opt/hadoop
+      HADOOP_CONF_DIR: /workspace/docker/hadoop/conf
+      PATH: /opt/hadoop/bin:/opt/hadoop/sbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    ports:
+      - "9864:9864"
+      - "9866:9866"
+    volumes:
+      - ..:/workspace
+      - ../docker/hadoop/dist/hadoop:/opt/hadoop
+      - ../data/hdfs/data:/workspace/data/hdfs/data
+    working_dir: /workspace
+    command:
+      - sh
+      - -c
+      - |
+        test -x /opt/hadoop/bin/hdfs || { echo "missing Hadoop. run ./scripts/download_hadoop_hive.sh"; exit 1; }
+        until hdfs dfs -ls / >/dev/null 2>&1; do sleep 2; done
+        hdfs datanode
+
+  hive-server:
+    image: eclipse-temurin:8-jre
+    container_name: cdc-warehouse-hive-server
+    hostname: hive-server
+    depends_on:
+      - hdfs-namenode
+      - hdfs-datanode
+    environment:
+      JAVA_HOME: /opt/java/openjdk
+      HADOOP_HOME: /opt/hadoop
+      HADOOP_CONF_DIR: /workspace/docker/hadoop/conf
+      HIVE_HOME: /opt/hive
+      HIVE_CONF_DIR: /workspace/docker/hive/conf
+      PATH: /opt/hive/bin:/opt/hadoop/bin:/opt/hadoop/sbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    ports:
+      - "10000:10000"
+    volumes:
+      - ..:/workspace
+      - ../docker/hadoop/dist/hadoop:/opt/hadoop
+      - ../docker/hive/dist/hive:/opt/hive
+    working_dir: /workspace/data/hive
+    command:
+      - sh
+      - -c
+      - |
+        test -x /opt/hadoop/bin/hdfs || { echo "missing Hadoop. run ./scripts/download_hadoop_hive.sh"; exit 1; }
+        test -x /opt/hive/bin/hiveserver2 || { echo "missing Hive. run ./scripts/download_hadoop_hive.sh"; exit 1; }
+        until hdfs dfs -ls / >/dev/null 2>&1; do sleep 2; done
+        hdfs dfs -mkdir -p /tmp /warehouse/hive /warehouse/ods_binlog /warehouse/ods /warehouse/dim /warehouse/dwd /warehouse/dws /warehouse/dwt /warehouse/ads
+        hdfs dfs -chmod -R 777 /tmp /warehouse
+        if [ ! -d /workspace/data/hive/metastore_db ]; then
+          schematool -dbType derby -initSchema
+        fi
+        hiveserver2

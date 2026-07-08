@@ -1,0 +1,9 @@
+{
+  "basiccomment.avatar_commentbatchsource": {
+    "not_null": ["id", "batchnumber", "ctime"],
+    "increasing": ["ver"],
+    "special_values": {
+      "batchtype": ["unknown", "test"]
+    }
+  }
+}

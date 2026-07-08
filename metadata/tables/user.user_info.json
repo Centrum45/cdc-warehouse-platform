@@ -1,0 +1,45 @@
+{
+  "columns": [
+    {
+      "name": "id",
+      "type": "bigint"
+    },
+    {
+      "name": "user_name",
+      "type": "string"
+    },
+    {
+      "name": "mobile",
+      "type": "string"
+    },
+    {
+      "name": "email",
+      "type": "string"
+    },
+    {
+      "name": "register_time",
+      "type": "string"
+    },
+    {
+      "name": "ctime",
+      "type": "string"
+    },
+    {
+      "name": "utime",
+      "type": "string"
+    },
+    {
+      "name": "ver",
+      "type": "int"
+    }
+  ],
+  "ods_binlog_table": "ods_binlog_user_user_info_di",
+  "ods_table": "ods_user_user_info_dic",
+  "partition_column": "ctime",
+  "primary_keys": [
+    "id"
+  ],
+  "source_database": "user",
+  "source_table": "user_info",
+  "version_column": "ver"
+}

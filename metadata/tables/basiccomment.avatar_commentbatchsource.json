@@ -1,0 +1,41 @@
+{
+  "columns": [
+    {
+      "name": "id",
+      "type": "bigint"
+    },
+    {
+      "name": "batchnumber",
+      "type": "string"
+    },
+    {
+      "name": "batchtype",
+      "type": "string"
+    },
+    {
+      "name": "ctime",
+      "type": "string"
+    },
+    {
+      "name": "utime",
+      "type": "string"
+    },
+    {
+      "name": "ver",
+      "type": "int"
+    },
+    {
+      "name": "source_channel",
+      "type": "string"
+    }
+  ],
+  "ods_binlog_table": "ods_binlog_basiccomment_avatar_commentbatchsource_di",
+  "ods_table": "ods_basiccomment_avatar_commentbatchsource_dic",
+  "partition_column": "ctime",
+  "primary_keys": [
+    "id"
+  ],
+  "source_database": "basiccomment",
+  "source_table": "avatar_commentbatchsource",
+  "version_column": "ver"
+}

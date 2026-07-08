@@ -1,0 +1,14 @@
+{
+  "source_database": "trade",
+  "source_table": "order_info",
+  "columns": [
+    {"name": "id", "type": "bigint"},
+    {"name": "user_id", "type": "bigint"},
+    {"name": "order_no", "type": "string"},
+    {"name": "pay_amount", "type": "double"},
+    {"name": "order_status", "type": "string"},
+    {"name": "ctime", "type": "string"},
+    {"name": "utime", "type": "string"},
+    {"name": "ver", "type": "int"}
+  ]
+}

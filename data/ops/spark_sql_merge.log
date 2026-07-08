@@ -1,0 +1,73 @@
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+spark-sql-merge idle
+./scripts/run_host_spark_sql_merge_loop.sh: line 9: 14846 Terminated: 15          python3 scripts/spark_sql_ods_merge_loop.py --engine pyspark --interval-seconds "${MERGE_INTERVAL_SECONDS:-30}" --max-delay-seconds "${MERGE_MAX_DELAY_SECONDS:-9999999999}"
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/07/07 22:29:16 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+spark-sql-daily-merge basiccomment.avatar_commentbatchsource.json dt=2026-07-06 pyspark:data/lake/ods/db=basiccomment/table=avatar_commentbatchsource
+spark-sql-daily-merge trade.order_info.json dt=2026-07-06 pyspark:data/lake/ods/db=trade/table=order_info
+spark-sql-daily-merge user.user_info.json dt=2026-07-06 skipped:no_binlog_partition

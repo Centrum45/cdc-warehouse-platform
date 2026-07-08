@@ -1,0 +1,8 @@
+topics:
+  incremental_binlog: cdc.incremental.binlog
+  bootstrap_binlog: cdc.bootstrap.binlog
+
+consumer_groups:
+  offline_sink: warehouse.offline.hdfs
+  realtime_sink: warehouse.realtime.kudu
+

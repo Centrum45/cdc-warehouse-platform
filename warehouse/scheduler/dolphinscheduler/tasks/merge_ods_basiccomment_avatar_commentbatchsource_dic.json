@@ -1,0 +1,6 @@
+{
+  "command": "spark-sql -f warehouse/sql/ods/merge/merge_ods_basiccomment_avatar_commentbatchsource_dic.sql",
+  "description": "Merge binlog to ODS snapshot for basiccomment.avatar_commentbatchsource",
+  "name": "merge_ods_basiccomment_avatar_commentbatchsource_dic",
+  "type": "SPARK_SQL"
+}
