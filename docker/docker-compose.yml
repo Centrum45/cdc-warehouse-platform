@@ -104,6 +104,29 @@ services:
       - -c
       - python3 scripts/spark_streaming_kafka_to_hdfs_loop.py --bootstrap-server kafka:9092 --lake-root "${LAKE_ROOT:-hdfs://hdfs-namenode:8020/warehouse}" --interval-seconds 5 --max-messages 500
 
+  dolphinscheduler:
+    image: apache/dolphinscheduler-standalone-server:3.2.1
+    container_name: cdc-warehouse-dolphinscheduler
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      MASTER_MAX_SYSTEM_MEMORY_USAGE_PERCENTAGE: "1.0"
+      MASTER_MAX_CPU_LOAD_AVG: "-1"
+      MASTER_MAX_RESCUED_MEMORY: "-1"
+    ports:
+      - "12345:12345"
+      - "25333:25333"
+    volumes:
+      - ds_logs:/opt/dolphinscheduler/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:12345/dolphinscheduler/actuator/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 20
+      start_period: 120s
+
   ops-refresh:
     image: docker:27-cli
     container_name: cdc-warehouse-ops-refresh
@@ -138,3 +161,4 @@ services:
 
 volumes:
   mysql_data:
+  ds_logs:

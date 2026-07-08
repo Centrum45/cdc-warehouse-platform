@@ -36,17 +36,21 @@ class DolphinSchedulerClient:
     def _build_url(self, path: str) -> str:
         return f"{self.endpoint}{path}"
 
-    def _headers(self) -> dict[str, str]:
-        headers = {"Content-Type": "application/json"}
+    def _headers(self, with_content_type: bool = True) -> dict[str, str]:
+        headers = {}
+        if with_content_type:
+            headers["Content-Type"] = "application/json"
         if self.token:
-            headers["token"] = self.token
+            # DS 3.x standalone uses cookie-based auth with sessionId
+            headers["Cookie"] = f"sessionId={self.token}"
         return headers
 
     def _http(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
         """Send an HTTP request to the DS OpenAPI, parse JSON response."""
         url = self._build_url(path)
-        data = json.dumps(body).encode("utf-8") if body else None
-        req = urllib.request.Request(url, data=data, headers=self._headers(), method=method)
+        has_body = body is not None
+        data = json.dumps(body).encode("utf-8") if has_body else None
+        req = urllib.request.Request(url, data=data, headers=self._headers(with_content_type=has_body), method=method)
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 return json.loads(resp.read().decode("utf-8"))
@@ -79,13 +83,13 @@ class DolphinSchedulerClient:
     def _do_request(self, action: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Map logical action names to DS OpenAPI calls."""
         if action == "create_project":
-            return self._http("POST", "/projects", payload)
+            return self._http("POST", "/v2/projects", payload)
         if action == "update_project":
             code = payload.get("projectCode")
-            return self._http("PUT", f"/projects/{code}", payload)
+            return self._http("PUT", f"/v2/projects/{code}", payload)
         if action == "query_project":
             name = payload.get("projectName", "")
-            return self._http("GET", f"/projects/list?searchVal={name}")
+            return self._http("GET", f"/v2/projects?pageNo=1&pageSize=50&searchVal={name}")
         if action == "create_or_update_process":
             return self._create_or_update_process_impl(payload)
         if action == "online_process":
@@ -253,10 +257,11 @@ class DolphinSchedulerClient:
 
     def _resolve_project_code(self, project_name: str) -> dict[str, Any] | None:
         """Find a project by name and return its {code, name} dict, or None."""
-        resp = self._http("GET", "/projects/list?searchVal=")
+        resp = self._http("GET", "/projects/list?pageNo=1&pageSize=200")
         if not isinstance(resp, dict):
             return None
         data = resp.get("data") or []
+        # data might be a list (DS 3.x) or dict with totalList
         if isinstance(data, dict):
             data = data.get("totalList", [])
         for p in data:
@@ -268,7 +273,7 @@ class DolphinSchedulerClient:
         """Find a process definition by name within a project."""
         resp = self._http(
             "GET",
-            f"/projects/{project_code}/process-definition"
+            f"/projects/{project_code}/process-definition/list"
             f"?searchVal={process_name}&pageNo=1&pageSize=50",
         )
         if not isinstance(resp, dict):
@@ -294,6 +299,33 @@ class DolphinSchedulerClient:
         if isinstance(data, dict):
             data = data.get("totalList", [])
         return data[0] if data else None
+
+    # ------------------------------------------------------------------
+    # Authentication
+    # ------------------------------------------------------------------
+
+    def login(self, username: str, password: str) -> dict[str, Any]:
+        """Login to DS and store the session token.
+
+        DS 3.x expects userName/userPassword as query parameters, not JSON body.
+        """
+        resp = self._http(
+            "POST",
+            f"/login?userName={username}&userPassword={password}",
+        )
+        if isinstance(resp, dict) and resp.get("success") and resp.get("data"):
+            data = resp["data"]
+            # DS 3.x returns sessionId
+            self.token = data.get("sessionId", "")
+        return resp
+
+    @property
+    def is_authenticated(self) -> bool:
+        """Check if the current token is valid."""
+        if not self.token:
+            return False
+        resp = self._http("GET", "/users/get-user-info")
+        return isinstance(resp, dict) and resp.get("success", False)
 
     # ------------------------------------------------------------------
     # Public API (backward-compatible)

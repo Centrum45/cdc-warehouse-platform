@@ -17,8 +17,10 @@ delay_gate:
 dolphinscheduler:
   endpoint: http://localhost:12345/dolphinscheduler
   token: ""
-  audit_mode: true
+  audit_mode: false
   audit_dir: data/dolphinscheduler/audit
+  username: admin
+  password: dolphinscheduler123
 
 logging:
   level: DEBUG

@@ -108,3 +108,26 @@ class ImpalaQuery:
     def run_view(self, db: str, view: str) -> list[dict[str, Any]]:
         """Run a pre-defined view and return results."""
         return self.query(f"SELECT * FROM {db}.{view}")
+
+    def list_views(self, db: str) -> list[str]:
+        """List all views in a database."""
+        if not self.is_available:
+            return [
+                "v_realtime_comment_analysis",
+                "v_realtime_trade_analysis",
+                "v_realtime_user_analysis",
+            ]
+        return [r["name"] for r in self.query(f"SHOW VIEWS IN {db}")]
+
+    def list_tables(self, db: str) -> list[str]:
+        """List all tables in a database."""
+        if not self.is_available:
+            return ["avatar_commentbatchsource", "order_info", "user_info"]
+        return [r["name"] for r in self.query(f"SHOW TABLES IN {db}")]
+
+    # Known realtime views catalog
+    KNOWN_VIEWS = {
+        "v_realtime_comment_analysis": "Comment batch analysis by type",
+        "v_realtime_trade_analysis": "Trade order analysis by status (GMV, avg value)",
+        "v_realtime_user_analysis": "User registration analysis by date",
+    }

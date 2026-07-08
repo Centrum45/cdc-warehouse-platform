@@ -35,6 +35,20 @@ TABLE_REGISTRY: dict[str, dict[str, Any]] = {
         "columns": ["id", "batchnumber", "batchtype", "ctime", "utime", "ver", "event_ts"],
         "primary_keys": ["id"],
     },
+    "trade.order_info": {
+        "impala_db": "realtime",
+        "impala_table": "order_info",
+        "columns": ["id", "user_id", "order_no", "pay_amount", "order_status",
+                    "ctime", "utime", "ver", "event_ts"],
+        "primary_keys": ["id"],
+    },
+    "user.user_info": {
+        "impala_db": "realtime",
+        "impala_table": "user_info",
+        "columns": ["id", "user_name", "mobile", "email", "register_time",
+                    "ctime", "utime", "ver", "event_ts"],
+        "primary_keys": ["id"],
+    },
 }
 
 
