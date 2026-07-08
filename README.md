@@ -42,6 +42,17 @@ Run tests:
 python3 -m unittest discover -s tests
 ```
 
+CI checks on GitHub Actions:
+
+```text
+Python unit tests
+Python syntax/import checks
+SpringBoot Maven compile
+Shell syntax checks
+Docker Compose config checks
+Deployment guide Markdown fence checks
+```
+
 Python SparkStreaming-style jobs:
 
 ```bash

@@ -26,7 +26,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install PyYAML
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Run tests
         run: |
@@ -75,7 +76,9 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: pip install PyYAML
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Check syntax (compile all .py files)
         run: |
@@ -100,3 +103,36 @@ jobs:
           from warehouse.scheduler.dolphinscheduler.ds_api_client import DolphinSchedulerClient
           print('All core imports OK')
           "
+
+  # ------------------------------------------------------------------
+  # Shell + Docker Compose static checks
+  # ------------------------------------------------------------------
+  deploy-config-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check shell syntax
+        run: |
+          bash -n deploy/server/*.sh deploy/prod/*.sh scripts/*.sh
+
+      - name: Check Docker Compose config
+        run: |
+          docker compose -f docker/docker-compose.yml config --quiet
+          docker compose -f docker/docker-compose.yml -f docker/docker-compose.hive.yml config --quiet
+
+      - name: Check deployment guide code fences
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for path in [
+              Path("docs/deployment_guide.md"),
+              Path("docs/deployment_guide_zh.md"),
+          ]:
+              text = path.read_text(encoding="utf-8")
+              count = text.count("```")
+              if count % 2:
+                  raise SystemExit(f"{path}: unmatched markdown code fence count={count}")
+              print(f"{path}: code fences ok ({count})")
+          PY
