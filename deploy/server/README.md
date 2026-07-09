@@ -22,6 +22,7 @@ sudo vim /etc/cdc-warehouse/jobs.env
 Start services:
 
 ```bash
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh preflight
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh start
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh health
 ```
@@ -30,6 +31,7 @@ sudo /opt/cdc-warehouse-platform/deploy/server/control.sh health
 
 ```bash
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh status
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh preflight
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh restart
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh stop
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh smoke --biz-dt 2026-07-07
@@ -80,7 +82,9 @@ sudo REMOVE_DATA=true /opt/cdc-warehouse-platform/deploy/server/uninstall.sh
 
 - `SPRING_PROFILES_ACTIVE=prod` disables local fallback data.
 - Admin startup fails if MySQL or project root is invalid.
-- `/api/actions/**` requires JWT in prod.
+- `WAREHOUSE_ACTIONS_PUBLIC_ENABLED=false` keeps pages and action APIs behind login/JWT.
+- Change `ADMIN_PASS` and use a strong `JWT_SECRET` before startup.
+- `/login` provides browser login. `/api/auth/login` provides API JWT login.
 - SparkStreaming expects `kafka-console-consumer` on PATH.
 - Ops refresh uses `kafka-topics`, `hdfs`, and `beeline` if installed.
 

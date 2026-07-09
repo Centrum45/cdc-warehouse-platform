@@ -29,12 +29,15 @@ case "${action}" in
   health)
     "$(cd "$(dirname "$0")" && pwd)/healthcheck.sh"
     ;;
+  preflight)
+    "$(cd "$(dirname "$0")" && pwd)/preflight.sh"
+    ;;
   smoke)
     shift
     "$(cd "$(dirname "$0")" && pwd)/prod_smoke.sh" "$@"
     ;;
   *)
-    echo "usage: $0 {start|stop|restart|status|logs [unit]|merge|health|smoke [--biz-dt yyyy-mm-dd] [--merge]}" >&2
+    echo "usage: $0 {start|stop|restart|status|logs [unit]|merge|health|preflight|smoke [--biz-dt yyyy-mm-dd] [--merge]}" >&2
     exit 2
     ;;
 esac

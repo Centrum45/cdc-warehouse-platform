@@ -37,5 +37,16 @@ public class StartupValidationService implements ApplicationRunner {
         if (warehouseProperties.getValidation().isRequireMysql()) {
             jdbcTemplate.queryForObject("select 1", Integer.class);
         }
+        if (!warehouseProperties.getActions().isPublicEnabled()) {
+            if ("admin123".equals(warehouseProperties.getAuth().getAdminPass())) {
+                throw new IllegalStateException("ADMIN_PASS must be changed when public actions are disabled");
+            }
+            if (warehouseProperties.getAuth().getJwtSecret() == null || warehouseProperties.getAuth().getJwtSecret().length() < 32) {
+                throw new IllegalStateException("JWT_SECRET must be at least 32 characters");
+            }
+            if (warehouseProperties.getAuth().getJwtSecret().contains("default-secret")) {
+                throw new IllegalStateException("JWT_SECRET must not use a default value");
+            }
+        }
     }
 }

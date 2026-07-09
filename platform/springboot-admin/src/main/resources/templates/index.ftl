@@ -17,6 +17,7 @@
         <a href="/replay">Replay</a>
         <a href="/monitors">Monitors</a>
         <a href="/rules">Rules</a>
+        <a class="logout" href="/logout">Logout</a>
       </nav>
     </header>
     <main>

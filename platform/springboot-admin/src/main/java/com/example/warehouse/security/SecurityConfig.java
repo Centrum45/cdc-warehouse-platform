@@ -1,6 +1,7 @@
 package com.example.warehouse.security;
 
 import com.example.warehouse.config.WarehouseProperties;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -30,25 +31,33 @@ public class SecurityConfig {
             .authorizeRequests()
                 // Public endpoints
                 .antMatchers("/api/auth/**").permitAll()
-                .antMatchers("/api/dashboard").permitAll()
-                .antMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .antMatchers("/", "/admin.css", "/css/**", "/js/**", "/webjars/**").permitAll();
+                .antMatchers("/login", "/logout", "/admin.css", "/css/**", "/js/**", "/webjars/**").permitAll();
 
         if (warehouseProperties.getActions().isPublicEnabled()) {
-            http.authorizeRequests().antMatchers("/api/actions/**").permitAll();
-            http.authorizeRequests().antMatchers("/api/hive/**").permitAll();
-            http.authorizeRequests().antMatchers("/api/tasks/**", "/api/metadata/**").permitAll();
-            http.authorizeRequests().antMatchers("/tasks/**", "/onboarding/**", "/replay/**",
-                "/monitors/**", "/rules/**", "/logs/**").permitAll();
+            http.authorizeRequests()
+                .antMatchers("/", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .antMatchers("/api/dashboard", "/api/actions/**", "/api/hive/**").permitAll()
+                .antMatchers("/api/tasks/**", "/api/metadata/**").permitAll()
+                .antMatchers("/tasks/**", "/onboarding/**", "/replay/**",
+                    "/monitors/**", "/rules/**", "/logs/**").permitAll()
+                .anyRequest().authenticated();
         } else {
-            http.authorizeRequests().antMatchers("/tasks/**", "/onboarding/**", "/replay/**",
-                "/monitors/**", "/rules/**", "/logs/**").authenticated();
+            http.authorizeRequests()
+                .antMatchers("/", "/swagger-ui/**", "/v3/api-docs/**").authenticated()
+                .antMatchers("/api/**").authenticated()
+                .antMatchers("/tasks/**", "/onboarding/**", "/replay/**",
+                    "/monitors/**", "/rules/**", "/logs/**").authenticated()
+                .anyRequest().authenticated();
         }
 
-        http.authorizeRequests()
-            // Protected endpoints
-            .antMatchers("/api/**").authenticated()
-            .anyRequest().authenticated()
+        http.exceptionHandling()
+                .authenticationEntryPoint((request, response, authException) -> {
+                    if (request.getRequestURI().startsWith("/api/")) {
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                    } else {
+                        response.sendRedirect("/login");
+                    }
+                })
             .and()
             .addFilterBefore(
             new JwtAuthFilter(jwtTokenProvider),
