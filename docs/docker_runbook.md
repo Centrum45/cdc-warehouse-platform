@@ -141,9 +141,8 @@ Docker E2E writes real HDFS paths:
 Hive DDL is loaded by `scripts/init_hdfs_hive.sh`. Runtime state under
 `data/hdfs`, `data/hive`, and `data/ops` is ignored by Git.
 
-Browse HDFS-backed layers through the platform API:
+Browse HDFS-backed layers through SpringBoot Admin:
 
-```bash
-LAKE_ROOT=hdfs://localhost:8020/warehouse BIZ_DT=2026-07-07 python3 platform_api/main.py
-curl 'http://127.0.0.1:8000/api/layers?dt=2026-07-07'
+```text
+http://localhost:8080/
 ```

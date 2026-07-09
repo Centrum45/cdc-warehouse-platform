@@ -1,5 +1,6 @@
 package com.example.warehouse.controller;
 
+import com.example.warehouse.model.CommandResult;
 import com.example.warehouse.model.SparkTaskConfig;
 import com.example.warehouse.service.TaskConfigService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -8,7 +9,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller
 @Tag(name = "Tasks", description = "Spark task configuration")
@@ -40,5 +43,12 @@ public class TaskController {
         model.addAttribute("task", task);
         model.addAttribute("message", "task saved");
         return "tasks";
+    }
+
+    @PostMapping("/api/tasks/run/{taskName}")
+    @ResponseBody
+    @Operation(summary = "Run one configured task")
+    public CommandResult runTask(@PathVariable String taskName) {
+        return taskConfigService.runTask(taskName);
     }
 }

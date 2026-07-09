@@ -30,6 +30,10 @@ warehouse:
     admin-pass: ${ADMIN_PASS:admin123}
     jwt-secret: ${JWT_SECRET:cdc-warehouse-platform-secret-key-2026-minimum-256-bit-length}
     jwt-expiration-ms: 86400000
+  hive:
+    jdbc-url: ${HIVE_JDBC_URL:jdbc:hive2://localhost:10000/default}
+    username: ${HIVE_USER:root}
+    password: ${HIVE_PASSWORD:}
 
 springdoc:
   swagger-ui:

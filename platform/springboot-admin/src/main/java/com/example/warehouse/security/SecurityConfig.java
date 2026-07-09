@@ -32,16 +32,22 @@ public class SecurityConfig {
                 .antMatchers("/api/auth/**").permitAll()
                 .antMatchers("/api/dashboard").permitAll()
                 .antMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .antMatchers("/", "/css/**", "/js/**", "/webjars/**").permitAll();
+                .antMatchers("/", "/admin.css", "/css/**", "/js/**", "/webjars/**").permitAll();
 
         if (warehouseProperties.getActions().isPublicEnabled()) {
             http.authorizeRequests().antMatchers("/api/actions/**").permitAll();
+            http.authorizeRequests().antMatchers("/api/hive/**").permitAll();
+            http.authorizeRequests().antMatchers("/api/tasks/**", "/api/metadata/**").permitAll();
+            http.authorizeRequests().antMatchers("/tasks/**", "/onboarding/**", "/replay/**",
+                "/monitors/**", "/rules/**", "/logs/**").permitAll();
+        } else {
+            http.authorizeRequests().antMatchers("/tasks/**", "/onboarding/**", "/replay/**",
+                "/monitors/**", "/rules/**", "/logs/**").authenticated();
         }
 
         http.authorizeRequests()
             // Protected endpoints
-            .antMatchers("/tasks/**", "/onboarding/**", "/replay/**",
-                         "/monitors/**", "/rules/**", "/api/**").authenticated()
+            .antMatchers("/api/**").authenticated()
             .anyRequest().authenticated()
             .and()
             .addFilterBefore(

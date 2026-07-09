@@ -29,6 +29,8 @@ services:
     image: confluentinc/cp-zookeeper:7.6.1
     container_name: cdc-warehouse-zookeeper
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports:
@@ -40,6 +42,8 @@ services:
     depends_on:
       - zookeeper
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:19092
@@ -66,6 +70,9 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
     volumes:
       - ./maxwell/config.properties:/app/config.properties:ro
     command: ["bin/maxwell", "--config", "/app/config.properties"]
@@ -79,11 +86,16 @@ services:
       mysql:
         condition: service_healthy
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-cdc_warehouse_admin}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       WAREHOUSE_PROJECT_ROOT: /workspace
+      HIVE_JDBC_URL: jdbc:hive2://hive-server:10000/default
+      HIVE_USER: root
+      HIVE_PASSWORD:
     ports:
       - "8080:8080"
     volumes:
@@ -102,6 +114,8 @@ services:
         condition: service_started
     working_dir: /workspace
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       ENVIRONMENT: ${ENVIRONMENT:-dev}
       KAFKA_TOPIC: ${KAFKA_TOPIC:-cdc.incremental.binlog}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -136,6 +150,7 @@ services:
         condition: service_healthy
     environment:
       TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       MASTER_MAX_SYSTEM_MEMORY_USAGE_PERCENTAGE: "1.0"
       MASTER_MAX_CPU_LOAD_AVG: "-1"
       MASTER_MAX_RESCUED_MEMORY: "-1"
@@ -160,6 +175,8 @@ services:
       - spark-streaming
       - admin
     working_dir: /workspace
+    environment:
+      TZ: CST-8
     volumes:
       - ..:/workspace
       - /var/run/docker.sock:/var/run/docker.sock
@@ -167,19 +184,8 @@ services:
       - sh
       - -c
       - |
-        mkdir -p data/ops
         while true; do
-          docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' > data/ops/container_status.txt 2>&1 || true
-          docker logs --tail 120 cdc-warehouse-maxwell > data/ops/maxwell.log 2>&1 || true
-          docker logs --tail 80 cdc-warehouse-kafka > data/ops/kafka.log 2>&1 || true
-          docker logs --tail 80 cdc-warehouse-spark-streaming > data/ops/spark_streaming.log 2>&1 || true
-          docker logs --tail 80 cdc-warehouse-admin > data/ops/admin.log 2>&1 || true
-          docker logs --tail 80 cdc-warehouse-hdfs-namenode > data/ops/hdfs_namenode.log 2>&1 || true
-          docker logs --tail 80 cdc-warehouse-hive-server > data/ops/hive_server.log 2>&1 || true
-          docker exec cdc-warehouse-kafka kafka-topics --bootstrap-server kafka:9092 --list > data/ops/kafka_topics.txt 2>&1 || true
-          docker exec cdc-warehouse-hdfs-namenode hdfs dfs -ls -R /warehouse > data/ops/hdfs_warehouse_ls.txt 2>&1 || true
-          docker exec cdc-warehouse-hive-server beeline -u jdbc:hive2://localhost:10000 -e 'show databases;' > data/ops/hive_databases.txt 2>&1 || true
-          date '+%Y-%m-%d %H:%M:%S' > data/ops/refreshed_at.txt
+          sh scripts/refresh_ops_snapshot.sh > data/ops/refresher.log 2>&1 || true
           sleep 5
         done
 

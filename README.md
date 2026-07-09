@@ -18,7 +18,7 @@ Local-compatible interfaces:
 - Kafka: JSONL event files or Docker Kafka
 - Hive/Spark SQL: generated SQL, local merge job, and Docker Hive/PySpark E2E
 - Kudu/Impala: DDL/query placeholders
-- Platform: SpringBoot + Freemarker skeleton
+- Platform: SpringBoot + Freemarker admin console
 - Scheduler: DolphinScheduler workflow definitions
 
 ## Local Quick Start
@@ -96,8 +96,10 @@ Control-plane skeleton:
 
 ```text
 platform/springboot-admin
-  /                 metadata query
+  /                 dashboard
+  /logs             runtime logs and Kafka/container status
   /tasks            Spark task config
+  /onboarding       MySQL-to-Hive onboarding
   /replay           Maxwell bootstrap/replay
   /monitors         delay/field/special/table/plaintext monitors
 ```
@@ -145,12 +147,6 @@ This verifies:
 ```text
 MySQL insert -> Maxwell -> Kafka -> SparkStreaming -> HDFS ods_binlog
 -> PySpark ODS merge -> Hive ODS -> DIM/DWD/DWS/DWT/ADS
-```
-
-Platform API can browse HDFS by setting:
-
-```bash
-LAKE_ROOT=hdfs://localhost:8020/warehouse BIZ_DT=2026-07-07 python3 platform_api/main.py
 ```
 
 Deployment docs:

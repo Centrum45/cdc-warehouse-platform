@@ -396,30 +396,59 @@ public class DashboardService {
         if (directory == null || directory.trim().isEmpty()) {
             return "";
         }
-        CommandResult result = commandExecutorService.run(Arrays.asList(
-                "docker", "exec", "cdc-warehouse-hdfs-namenode",
-                "sh", "-lc", "hdfs dfs -cat '" + directory + "'/* 2>/dev/null | grep -v 'NativeCodeLoader' | head -" + limit), 10);
-        if (result.getExitCode() != 0) {
-            return result.getOutput();
+        File sample = hdfsSampleFile(directory, "head");
+        if (sample.exists()) {
+            return limitCachedLines(readWhole(sample), limit);
         }
-        return result.getOutput();
+        File local = localPartitionForHdfsDirectory(directory);
+        if (local != null && local.exists()) {
+            return readHead(firstDataFile(local), limit);
+        }
+        return "waiting for ops-refresh HDFS sample cache";
     }
 
     private long countHdfsRows(String directory) {
         if (directory == null || directory.trim().isEmpty()) {
             return 0L;
         }
-        CommandResult result = commandExecutorService.run(Arrays.asList(
-                "docker", "exec", "cdc-warehouse-hdfs-namenode",
-                "sh", "-lc", "hdfs dfs -cat '" + directory + "'/* 2>/dev/null | grep -v 'NativeCodeLoader' | wc -l"), 10);
-        if (result.getExitCode() != 0) {
-            return 0L;
-        }
         try {
-            return Long.parseLong(result.getOutput().trim());
+            File count = hdfsSampleFile(directory, "count");
+            if (count.exists()) {
+                return Long.parseLong(readWhole(count).trim());
+            }
         } catch (Exception ex) {
             return 0L;
         }
+        File local = localPartitionForHdfsDirectory(directory);
+        if (local != null && local.exists()) {
+            return countLocalRows(firstDataFile(local));
+        }
+        return 0L;
+    }
+
+    private File hdfsSampleFile(String directory, String suffix) {
+        String safeName = directory.replaceAll("[^A-Za-z0-9._=-]", "_");
+        return new File(commandExecutorService.getProjectRoot(), "data/ops/hdfs_samples/" + safeName + "." + suffix);
+    }
+
+    private String limitCachedLines(String content, int limit) {
+        StringBuilder builder = new StringBuilder();
+        int count = 0;
+        for (String line : content.split("\\R")) {
+            if (count >= limit) {
+                break;
+            }
+            builder.append(line).append('\n');
+            count++;
+        }
+        return builder.toString();
+    }
+
+    private File localPartitionForHdfsDirectory(String directory) {
+        if (!directory.startsWith("/warehouse/")) {
+            return null;
+        }
+        return new File(commandExecutorService.getProjectRoot(), "data/lake/" + directory.substring("/warehouse/".length()));
     }
 
     private File firstDataFile(File directory) {

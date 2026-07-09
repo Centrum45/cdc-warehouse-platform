@@ -1,6 +1,7 @@
 package com.example.warehouse.service;
 
 import com.example.warehouse.config.WarehouseProperties;
+import com.example.warehouse.model.CommandResult;
 import com.example.warehouse.model.SparkTaskConfig;
 import com.example.warehouse.repository.TaskRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -58,5 +59,13 @@ public class TaskConfigService {
 
     public void saveTask(SparkTaskConfig task) {
         taskRepository.upsert(task);
+    }
+
+    public CommandResult runTask(String taskName) {
+        return listTasks().stream()
+                .filter(task -> taskName.equals(task.getTaskName()))
+                .findFirst()
+                .map(task -> commandExecutorService.run(java.util.Arrays.asList("bash", "-lc", task.getCommand()), 600))
+                .orElseGet(() -> new CommandResult(2, "task not found: " + taskName));
     }
 }

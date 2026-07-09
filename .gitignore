@@ -13,6 +13,7 @@ data/lake/ods_pyspark/
 data/alerts/
 data/dolphinscheduler/
 data/monitor/
+data/runtime/
 data/hdfs/
 data/hive/
 data/ops/
