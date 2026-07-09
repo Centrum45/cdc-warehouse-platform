@@ -580,6 +580,7 @@ mysql -h MYSQL_HOST -P 3306 -u cdc_admin -p cdc_warehouse_admin \
 启动：
 
 ```bash
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh preflight
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh start
 ```
 

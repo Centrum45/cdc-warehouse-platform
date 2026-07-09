@@ -167,6 +167,7 @@ Install to a Linux server without Kubernetes:
 sudo deploy/server/install.sh
 sudo vim /etc/cdc-warehouse/admin.env
 sudo vim /etc/cdc-warehouse/jobs.env
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh preflight
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh start
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh health
 ```

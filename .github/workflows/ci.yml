@@ -124,15 +124,4 @@ jobs:
 
       - name: Check deployment guide code fences
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          for path in [
-              Path("docs/deployment_guide.md"),
-              Path("docs/deployment_guide_zh.md"),
-          ]:
-              text = path.read_text(encoding="utf-8")
-              count = text.count("```")
-              if count % 2:
-                  raise SystemExit(f"{path}: unmatched markdown code fence count={count}")
-              print(f"{path}: code fences ok ({count})")
-          PY
+          python scripts/validate_deployment_config.py

@@ -580,6 +580,7 @@ If your production metadata already exists, review SQL before running.
 Start:
 
 ```bash
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh preflight
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh start
 ```
 
