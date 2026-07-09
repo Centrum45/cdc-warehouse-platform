@@ -472,6 +472,12 @@ Run installer:
 sudo deploy/server/install.sh
 ```
 
+Preview install actions first if you want a no-write check:
+
+```bash
+deploy/server/install.sh --dry-run
+```
+
 Installer does:
 
 ```text

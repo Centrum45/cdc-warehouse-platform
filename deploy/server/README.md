@@ -27,6 +27,12 @@ sudo /opt/cdc-warehouse-platform/deploy/server/control.sh start
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh health
 ```
 
+Preview install actions without writing `/opt`, `/etc`, or systemd:
+
+```bash
+deploy/server/install.sh --dry-run
+```
+
 ## Operations
 
 ```bash

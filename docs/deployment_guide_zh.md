@@ -472,6 +472,12 @@ git checkout dev
 sudo deploy/server/install.sh
 ```
 
+如果想先做不写入系统目录的演练：
+
+```bash
+deploy/server/install.sh --dry-run
+```
+
 安装脚本会做：
 
 ```text
