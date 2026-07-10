@@ -155,6 +155,7 @@ def upsert_rows(
     kudu_root: Path,
     checkpoint_path: Path,
     use_real_kudu: bool = False,
+    realtime_engine: str | None = None,
 ) -> Path:
     """Read binlog topic, upsert into Kudu (real or simulated).
 
@@ -170,8 +171,14 @@ def upsert_rows(
 
     meta = _resolve_table(topic)
 
+    engine = (realtime_engine or os.environ.get("REALTIME_ENGINE") or "").lower()
+    if not engine:
+        engine = "kudu_impala" if use_real_kudu or os.environ.get("USE_REAL_KUDU", "").lower() in ("1", "true", "yes") else "local_csv"
+    if engine not in {"local_csv", "csv", "kudu_impala", "kudu"}:
+        raise ValueError(f"unsupported REALTIME_ENGINE: {engine}")
+
     # --- real Kudu path ---
-    if use_real_kudu or os.environ.get("USE_REAL_KUDU", "").lower() in ("1", "true", "yes"):
+    if engine in {"kudu_impala", "kudu"}:
         rows_to_upsert: list[dict[str, Any]] = []
         keys_to_delete: list[dict[str, Any]] = []
 
@@ -207,7 +214,11 @@ def main() -> None:
     kudu_root = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("data/kudu")
     checkpoint_path = Path(sys.argv[3]) if len(sys.argv) > 3 else Path("data/checkpoints/realtime_sink.json")
     use_real = "--real" in sys.argv
-    output = upsert_rows(topic_file, kudu_root, checkpoint_path, use_real_kudu=use_real)
+    engine = None
+    for arg in sys.argv:
+        if arg.startswith("--engine="):
+            engine = arg.split("=", 1)[1]
+    output = upsert_rows(topic_file, kudu_root, checkpoint_path, use_real_kudu=use_real, realtime_engine=engine)
     print(output)
 
 

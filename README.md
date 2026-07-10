@@ -171,6 +171,7 @@ docs/deployment_guide_zh.md
 docs/docker_runbook.md
 docs/deployment_profiles.md
 docs/realtime_kudu_impala.md
+docs/realtime_engine_selection_zh.md
 deploy/server/README.md
 ```
 

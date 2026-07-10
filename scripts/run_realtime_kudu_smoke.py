@@ -20,6 +20,7 @@ def main() -> None:
     parser.add_argument("--kudu-root", default="data/kudu")
     parser.add_argument("--checkpoint", default="data/checkpoints/realtime_sink.json")
     parser.add_argument("--real", action="store_true", help="Use real Impala/Kudu via impyla.")
+    parser.add_argument("--engine", choices=["local_csv", "kudu_impala"], default=None)
     parser.add_argument("--dry-run", action="store_true", help="Print bootstrap SQL only.")
     args = parser.parse_args()
 
@@ -42,6 +43,7 @@ def main() -> None:
         Path(args.kudu_root),
         Path(args.checkpoint),
         use_real_kudu=args.real,
+        realtime_engine=args.engine,
     )
     print(f"sink={output}")
 

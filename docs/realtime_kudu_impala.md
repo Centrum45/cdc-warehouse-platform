@@ -21,6 +21,12 @@ python3 streaming/realtime_sink/kafka_to_kudu.py \
   data/checkpoints/realtime_sink.json
 ```
 
+Equivalent explicit engine:
+
+```bash
+REALTIME_ENGINE=local_csv python3 streaming/realtime_sink/kafka_to_kudu.py
+```
+
 Output:
 
 ```text
@@ -45,6 +51,7 @@ export IMPALA_PASSWORD='your_password'
 export IMPALA_AUTH_MECHANISM=PLAIN
 export KUDU_MASTERS=kudu-master-1.example.com:7051,kudu-master-2.example.com:7051
 export USE_REAL_KUDU=true
+export REALTIME_ENGINE=kudu_impala
 ```
 
 Auth variables are optional. Use what your Impala cluster requires.
@@ -78,6 +85,7 @@ realtime.v_realtime_user_analysis
 
 ```bash
 python3 scripts/run_realtime_kudu_smoke.py --real \
+  --engine kudu_impala \
   --topic-file data/kafka/cdc.incremental.binlog.jsonl \
   --checkpoint data/checkpoints/realtime_sink_real.json
 ```

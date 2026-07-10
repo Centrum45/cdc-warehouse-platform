@@ -286,6 +286,7 @@ main 分支最新 CI 已通过。
 - 生产检查清单。
 - SpringBoot MySQL 文档。
 - Realtime Kudu/Impala 文档。
+- 实时数仓引擎选型文档。
 - FineBI 映射说明。
 - 指标说明。
 
@@ -523,6 +524,7 @@ basiccomment.avatar_commentbatchsource
 有 CI
 有服务器部署脚本
 有实时 Kudu/Impala 真实模式代码
+有实时引擎选型说明
 ```
 
 但还不是成熟企业级数据平台。

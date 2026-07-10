@@ -563,6 +563,7 @@ IMPALA_PASSWORD=your_password
 IMPALA_AUTH_MECHANISM=PLAIN
 KUDU_MASTERS=kudu-master-1.prod.example.com:7051,kudu-master-2.prod.example.com:7051
 USE_REAL_KUDU=true
+REALTIME_ENGINE=kudu_impala
 ```
 
 Protect env files:

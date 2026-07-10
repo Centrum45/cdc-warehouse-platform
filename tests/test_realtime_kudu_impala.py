@@ -79,6 +79,21 @@ class RealtimeKuduImpalaTest(unittest.TestCase):
                     with self.assertRaises(RuntimeError):
                         upsert_rows(topic, Path(tmp) / "kudu", Path(tmp) / "ckpt.json", use_real_kudu=True)
 
+    def test_explicit_local_csv_engine(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            topic = Path(tmp) / "topic.jsonl"
+            write_topic(topic)
+            output = upsert_rows(topic, Path(tmp) / "kudu", Path(tmp) / "ckpt.json", realtime_engine="local_csv")
+            self.assertTrue(output.exists())
+            self.assertIn("B1", output.read_text(encoding="utf-8"))
+
+    def test_unsupported_realtime_engine(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            topic = Path(tmp) / "topic.jsonl"
+            write_topic(topic)
+            with self.assertRaises(ValueError):
+                upsert_rows(topic, Path(tmp) / "kudu", Path(tmp) / "ckpt.json", realtime_engine="unknown")
+
 
 if __name__ == "__main__":
     unittest.main()
