@@ -4,6 +4,8 @@ services:
     container_name: cdc-warehouse-hdfs-namenode
     hostname: hdfs-namenode
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       JAVA_HOME: /opt/java/openjdk
       HADOOP_HOME: /opt/hadoop
       HADOOP_CONF_DIR: /workspace/docker/hadoop/conf
@@ -34,6 +36,8 @@ services:
     depends_on:
       - hdfs-namenode
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       JAVA_HOME: /opt/java/openjdk
       HADOOP_HOME: /opt/hadoop
       HADOOP_CONF_DIR: /workspace/docker/hadoop/conf
@@ -62,6 +66,8 @@ services:
       - hdfs-namenode
       - hdfs-datanode
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       JAVA_HOME: /opt/java/openjdk
       HADOOP_HOME: /opt/hadoop
       HADOOP_CONF_DIR: /workspace/docker/hadoop/conf

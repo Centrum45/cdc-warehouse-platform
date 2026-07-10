@@ -3,6 +3,7 @@ package com.example.warehouse.repository;
 import com.example.warehouse.model.TableMetadata;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -42,6 +43,20 @@ public class TableMetadataRepository {
         }
     }
 
+    public Optional<TableMetadata> findEnabled(String databaseName, String tableName) {
+        try {
+            List<TableMetadata> tables = jdbcTemplate.query(
+                    "select * from table_metadata where enabled = 1 and source_database = ? and source_table = ? limit 1",
+                    rowMapper,
+                    databaseName,
+                    tableName
+            );
+            return tables.stream().findFirst();
+        } catch (DataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
     public void upsert(TableMetadata table) {
         try {
             jdbcTemplate.update(
@@ -63,6 +78,9 @@ public class TableMetadataRepository {
     }
 
     private static List<String> splitCsv(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
         return Arrays.stream(value.split(","))
                 .map(String::trim)
                 .filter(item -> !item.isEmpty())

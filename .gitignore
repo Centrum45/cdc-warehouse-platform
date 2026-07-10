@@ -13,8 +13,14 @@ data/lake/ods_pyspark/
 data/alerts/
 data/dolphinscheduler/
 data/monitor/
+data/runtime/
+data/hdfs/
+data/hive/
+data/ops/
 .idea/
 target/
+.env
 docker/.env
+docker/.env.example
 docker/hadoop/dist/
 docker/hive/dist/

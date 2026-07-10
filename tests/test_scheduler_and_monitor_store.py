@@ -12,7 +12,7 @@ from warehouse.scheduler.dolphinscheduler.ds_api_client import DolphinSchedulerC
 class SchedulerMonitorStoreTest(unittest.TestCase):
     def test_dolphinscheduler_client_audit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            client = DolphinSchedulerClient("http://localhost", audit_dir=tmp)
+            client = DolphinSchedulerClient("http://localhost", audit_mode=True, audit_dir=tmp)
             result = client.create_project("cdc_warehouse")
             self.assertEqual(result["status"], "OK")
             self.assertTrue((Path(tmp) / "create_project.json").exists())

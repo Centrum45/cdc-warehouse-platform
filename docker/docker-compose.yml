@@ -11,8 +11,8 @@ services:
       - --enforce-gtid-consistency=ON
       - --default-authentication-plugin=mysql_native_password
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: cdc_warehouse_admin
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-cdc_warehouse_admin}
       TZ: Asia/Shanghai
     ports:
       - "13306:3306"
@@ -20,7 +20,7 @@ services:
       - mysql_data:/var/lib/mysql
       - ./mysql/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -29,6 +29,8 @@ services:
     image: confluentinc/cp-zookeeper:7.6.1
     container_name: cdc-warehouse-zookeeper
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports:
@@ -40,6 +42,8 @@ services:
     depends_on:
       - zookeeper
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:19092
@@ -66,6 +70,9 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
     volumes:
       - ./maxwell/config.properties:/app/config.properties:ro
     command: ["bin/maxwell", "--config", "/app/config.properties"]
@@ -79,17 +86,26 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/cdc_warehouse_admin?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-cdc_warehouse_admin}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       WAREHOUSE_PROJECT_ROOT: /workspace
+      HIVE_JDBC_URL: jdbc:hive2://hive-server:10000/default
+      HIVE_USER: root
+      HIVE_PASSWORD:
     ports:
       - "8080:8080"
     volumes:
       - ..:/workspace
 
   spark-streaming:
-    image: confluentinc/cp-kafka:7.6.1
+    build:
+      context: ..
+      dockerfile: docker/spark-streaming/Dockerfile
+    image: cdc-warehouse-spark-streaming:dev
     container_name: cdc-warehouse-spark-streaming
     depends_on:
       kafka:
@@ -97,12 +113,58 @@ services:
       maxwell:
         condition: service_started
     working_dir: /workspace
+    environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-cdc.incremental.binlog}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      LAKE_ROOT: ${LAKE_ROOT:-hdfs://hdfs-namenode:8020/warehouse}
+      SPARK_STREAMING_INTERVAL_SECONDS: ${SPARK_STREAMING_INTERVAL_SECONDS:-5}
+      SPARK_STREAMING_MAX_MESSAGES: ${SPARK_STREAMING_MAX_MESSAGES:-500}
+      SPARK_STREAMING_TIMEOUT_MS: ${SPARK_STREAMING_TIMEOUT_MS:-10000}
     volumes:
       - ..:/workspace
+    healthcheck:
+      test: ["CMD-SHELL", "python3 --version >/dev/null && kafka-topics --bootstrap-server kafka:9092 --list >/dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
     command:
       - sh
       - -c
-      - python3 scripts/spark_streaming_kafka_to_hdfs_loop.py --bootstrap-server kafka:9092 --lake-root "${LAKE_ROOT:-hdfs://hdfs-namenode:8020/warehouse}" --interval-seconds 5 --max-messages 500
+      - |
+        python3 scripts/spark_streaming_kafka_to_hdfs_loop.py \
+          --topic "$${KAFKA_TOPIC}" \
+          --bootstrap-server "$${KAFKA_BOOTSTRAP_SERVERS}" \
+          --lake-root "$${LAKE_ROOT}" \
+          --interval-seconds "$${SPARK_STREAMING_INTERVAL_SECONDS}" \
+          --max-messages "$${SPARK_STREAMING_MAX_MESSAGES}" \
+          --timeout-ms "$${SPARK_STREAMING_TIMEOUT_MS}"
+
+  dolphinscheduler:
+    image: apache/dolphinscheduler-standalone-server:3.2.1
+    container_name: cdc-warehouse-dolphinscheduler
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+      MASTER_MAX_SYSTEM_MEMORY_USAGE_PERCENTAGE: "1.0"
+      MASTER_MAX_CPU_LOAD_AVG: "-1"
+      MASTER_MAX_RESCUED_MEMORY: "-1"
+    ports:
+      - "12345:12345"
+      - "25333:25333"
+    volumes:
+      - ds_logs:/opt/dolphinscheduler/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:12345/dolphinscheduler/actuator/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 20
+      start_period: 120s
 
   ops-refresh:
     image: docker:27-cli
@@ -113,6 +175,8 @@ services:
       - spark-streaming
       - admin
     working_dir: /workspace
+    environment:
+      TZ: CST-8
     volumes:
       - ..:/workspace
       - /var/run/docker.sock:/var/run/docker.sock
@@ -120,21 +184,11 @@ services:
       - sh
       - -c
       - |
-        mkdir -p data/ops
         while true; do
-          docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' > data/ops/container_status.txt 2>&1 || true
-          docker logs --tail 120 cdc-warehouse-maxwell > data/ops/maxwell.log 2>&1 || true
-          docker logs --tail 80 cdc-warehouse-kafka > data/ops/kafka.log 2>&1 || true
-          docker logs --tail 80 cdc-warehouse-spark-streaming > data/ops/spark_streaming.log 2>&1 || true
-          docker logs --tail 80 cdc-warehouse-admin > data/ops/admin.log 2>&1 || true
-          docker logs --tail 80 cdc-warehouse-hdfs-namenode > data/ops/hdfs_namenode.log 2>&1 || true
-          docker logs --tail 80 cdc-warehouse-hive-server > data/ops/hive_server.log 2>&1 || true
-          docker exec cdc-warehouse-kafka kafka-topics --bootstrap-server kafka:9092 --list > data/ops/kafka_topics.txt 2>&1 || true
-          docker exec cdc-warehouse-hdfs-namenode hdfs dfs -ls -R /warehouse > data/ops/hdfs_warehouse_ls.txt 2>&1 || true
-          docker exec cdc-warehouse-hive-server beeline -u jdbc:hive2://localhost:10000 -e 'show databases;' > data/ops/hive_databases.txt 2>&1 || true
-          date '+%Y-%m-%d %H:%M:%S' > data/ops/refreshed_at.txt
+          sh scripts/refresh_ops_snapshot.sh > data/ops/refresher.log 2>&1 || true
           sleep 5
         done
 
 volumes:
   mysql_data:
+  ds_logs:

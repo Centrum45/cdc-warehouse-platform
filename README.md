@@ -1,23 +1,27 @@
 # CDC Warehouse Platform
 
-Binlog-driven warehouse demo based on:
+Binlog-driven warehouse platform based on:
 
 ```text
 MySQL -> Maxwell -> Kafka -> ods_binlog -> ODS snapshot -> DIM/DWD/DWS/DWT/ADS
                          -> Kudu/Impala realtime path
 ```
 
-This repo is a runnable local reconstruction of the architecture. Heavy systems
-are represented with compatible local interfaces:
+This repo supports two deployment modes:
 
-- HDFS: `data/lake`
-- Kafka: JSONL event files
-- Hive/Spark SQL: generated SQL plus local Python merge job
+- Local debug: Docker Compose starts MySQL, Maxwell, Kafka, HDFS, Hive, DolphinScheduler, SparkStreaming, and SpringBoot Admin.
+- Server production: deploy SpringBoot and long-running jobs directly to Linux servers with systemd, while connecting to real MySQL/Kafka/HDFS/Hive/DolphinScheduler.
+
+Local-compatible interfaces:
+
+- HDFS: local file lake `data/lake` or Docker HDFS `hdfs://localhost:8020/warehouse`
+- Kafka: JSONL event files or Docker Kafka
+- Hive/Spark SQL: generated SQL, local merge job, and Docker Hive/PySpark E2E
 - Kudu/Impala: DDL/query placeholders
-- Platform: SpringBoot + Freemarker skeleton
+- Platform: SpringBoot + Freemarker admin console
 - Scheduler: DolphinScheduler workflow definitions
 
-## Quick Start
+## Local Quick Start
 
 ```bash
 cd cdc-warehouse-platform
@@ -36,6 +40,17 @@ Run tests:
 
 ```bash
 python3 -m unittest discover -s tests
+```
+
+CI checks on GitHub Actions:
+
+```text
+Python unit tests
+Python syntax/import checks
+SpringBoot Maven compile
+Shell syntax checks
+Docker Compose config checks
+Deployment guide Markdown fence checks
 ```
 
 Python SparkStreaming-style jobs:
@@ -81,8 +96,10 @@ Control-plane skeleton:
 
 ```text
 platform/springboot-admin
-  /                 metadata query
+  /                 dashboard
+  /logs             runtime logs and Kafka/container status
   /tasks            Spark task config
+  /onboarding       MySQL-to-Hive onboarding
   /replay           Maxwell bootstrap/replay
   /monitors         delay/field/special/table/plaintext monitors
 ```
@@ -104,19 +121,65 @@ POST /tasks        save Spark task config
 POST /replay       create replay command and persist replay record
 ```
 
-Docker demo:
+Docker local stack:
 
 ```bash
+./scripts/local_smoke.sh
+
+# or step by step
 ./scripts/docker_up.sh
+./scripts/init_hdfs_hive.sh
+./scripts/check_local_stack.sh
 ./scripts/docker_seed_change.sh
 ./scripts/kafka_to_jsonl.sh
 ./scripts/docker_down.sh
 ```
 
-See:
+Full Docker HDFS/Hive E2E:
+
+```bash
+./scripts/download_hadoop_hive.sh
+./scripts/run_e2e_hdfs_pipeline.sh
+```
+
+This verifies:
 
 ```text
+MySQL insert -> Maxwell -> Kafka -> SparkStreaming -> HDFS ods_binlog
+-> PySpark ODS merge -> Hive ODS -> DIM/DWD/DWS/DWT/ADS
+```
+
+Deployment docs:
+
+```text
+docs/deployment_guide.md
+docs/deployment_guide_zh.md
 docs/docker_runbook.md
+docs/deployment_profiles.md
+deploy/server/README.md
+```
+
+## Server Deployment
+
+Install to a Linux server without Kubernetes:
+
+```bash
+sudo deploy/server/install.sh
+sudo vim /etc/cdc-warehouse/admin.env
+sudo vim /etc/cdc-warehouse/jobs.env
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh preflight
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh start
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh health
+```
+
+Service operations:
+
+```bash
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh status
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh logs cdc-spark-streaming.service
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh smoke --biz-dt 2026-07-07
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh merge
+systemctl list-timers | grep cdc-daily-merge
 ```
 
 Trade/user demo pipeline:

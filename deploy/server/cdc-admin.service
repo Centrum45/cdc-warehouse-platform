@@ -1,0 +1,18 @@
+[Unit]
+Description=CDC Warehouse SpringBoot Admin
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cdc
+Group=cdc
+WorkingDirectory=/opt/cdc-warehouse-platform
+EnvironmentFile=/etc/cdc-warehouse/admin.env
+ExecStart=/usr/bin/java -jar /opt/cdc-warehouse-platform/platform/springboot-admin/target/cdc-warehouse-admin-0.1.0.jar
+Restart=always
+RestartSec=10
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target

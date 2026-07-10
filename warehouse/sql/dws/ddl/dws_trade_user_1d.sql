@@ -1,7 +1,11 @@
+drop table if exists dws.dws_trade_user_1d;
+
 create external table if not exists dws.dws_trade_user_1d (
   user_id bigint,
   order_cnt bigint,
   pay_amount double
 )
 partitioned by (dt string)
-stored as parquet;
+row format delimited fields terminated by ','
+stored as textfile
+location '/warehouse/dws/dws_trade_user_1d';

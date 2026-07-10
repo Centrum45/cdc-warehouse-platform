@@ -1,3 +1,5 @@
+drop table if exists dwd.dwd_comment_batch_detail_di;
+
 create external table if not exists dwd.dwd_comment_batch_detail_di (
   id bigint,
   batchnumber string,
@@ -8,5 +10,6 @@ create external table if not exists dwd.dwd_comment_batch_detail_di (
   ver int
 )
 partitioned by (dt string)
-stored as parquet;
-
+row format delimited fields terminated by ','
+stored as textfile
+location '/warehouse/dwd/dwd_comment_batch_detail_di';

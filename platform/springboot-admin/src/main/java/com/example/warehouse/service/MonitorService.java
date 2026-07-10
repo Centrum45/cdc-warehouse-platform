@@ -1,21 +1,78 @@
 package com.example.warehouse.service;
 
+import com.example.warehouse.config.WarehouseProperties;
 import com.example.warehouse.model.MonitorResult;
 import com.example.warehouse.repository.MonitorResultRepository;
-import java.util.Arrays;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class MonitorService {
-    private final MonitorResultRepository monitorResultRepository;
+    private static final Logger log = LoggerFactory.getLogger(MonitorService.class);
+    private static final String FALLBACK_PATH = "data/platform/monitor_items.json";
 
-    public MonitorService(MonitorResultRepository monitorResultRepository) {
+    private final MonitorResultRepository monitorResultRepository;
+    private final ObjectMapper objectMapper;
+    private final CommandExecutorService commandExecutorService;
+    private final WarehouseProperties warehouseProperties;
+
+    public MonitorService(MonitorResultRepository monitorResultRepository, ObjectMapper objectMapper, CommandExecutorService commandExecutorService, WarehouseProperties warehouseProperties) {
         this.monitorResultRepository = monitorResultRepository;
+        this.objectMapper = objectMapper;
+        this.commandExecutorService = commandExecutorService;
+        this.warehouseProperties = warehouseProperties;
     }
 
     public List<String> listMonitorItems() {
-        return Arrays.asList("delay", "field", "special_value", "table_update", "plaintext");
+        File file = new File(commandExecutorService.getProjectRoot(), FALLBACK_PATH);
+        if (!file.exists()) {
+            if (!warehouseProperties.getMysql().isFallbackDemoData()) {
+                throw new IllegalStateException("No monitor items fallback file and fallback is disabled");
+            }
+            log.info("Fallback file not found, returning built-in list");
+            return getBuiltInMonitorTypes();
+        }
+        try {
+            Map<String, Object> root = objectMapper.readValue(file, new TypeReference<Map<String, Object>>() {});
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> monitors = (List<Map<String, Object>>) root.get("monitors");
+            if (monitors == null) {
+                return getBuiltInMonitorTypes();
+            }
+            List<String> types = new ArrayList<>();
+            for (Map<String, Object> m : monitors) {
+                Object type = m.get("monitorType");
+                if (type != null) {
+                    types.add(type.toString());
+                }
+            }
+            return types;
+        } catch (IOException e) {
+            log.error("Failed to read fallback monitors: {}", e.getMessage());
+            return getBuiltInMonitorTypes();
+        }
+    }
+
+    private List<String> getBuiltInMonitorTypes() {
+        List<String> types = new ArrayList<>();
+        types.add("delay");
+        types.add("field");
+        types.add("special_value");
+        types.add("table_update");
+        types.add("plaintext");
+        types.add("row_count");
+        types.add("null_rate");
+        types.add("partition");
+        return types;
     }
 
     public List<MonitorResult> listLatestResults() {

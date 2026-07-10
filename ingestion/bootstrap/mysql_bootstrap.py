@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
 from typing import Any
+
+
+def _default_password() -> str:
+    return os.environ.get("MYSQL_ROOT_PASSWORD", os.environ.get("MYSQL_PASSWORD", "root"))
 
 
 def quote_identifier(name: str) -> str:
@@ -23,16 +28,18 @@ def build_select_sql(metadata: dict[str, Any]) -> str:
 def mysql_query_tsv(
     sql: str,
     container: str = "cdc-warehouse-mysql",
-    user: str = "root",
-    password: str = "root",
+    user: str | None = None,
+    password: str | None = None,
 ) -> str:
+    _user = user or os.environ.get("MYSQL_USER", "root")
+    _password = password or _default_password()
     command = [
         "docker",
         "exec",
         container,
         "mysql",
-        "-u" + user,
-        "-p" + password,
+        "-u" + _user,
+        "-p" + _password,
         "--batch",
         "--raw",
         "--skip-column-names",
@@ -103,8 +110,8 @@ def bootstrap_table(
     metadata_path: Path,
     output_path: Path,
     container: str = "cdc-warehouse-mysql",
-    user: str = "root",
-    password: str = "root",
+    user: str | None = None,
+    password: str | None = None,
 ) -> Path:
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     sql = build_select_sql(metadata)

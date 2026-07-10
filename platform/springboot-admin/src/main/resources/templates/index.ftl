@@ -3,36 +3,7 @@
   <head>
     <meta charset="utf-8">
     <title>CDC Warehouse Admin</title>
-    <style>
-      body { margin: 0; font-family: Arial, sans-serif; background: #f6f7f9; color: #1f2933; }
-      header { background: #263238; color: white; padding: 18px 28px; }
-      header h1 { margin: 0; font-size: 22px; }
-      nav { margin-top: 10px; }
-      nav a { color: #dbeafe; margin-right: 18px; text-decoration: none; font-size: 14px; }
-      main { padding: 22px 28px 40px; }
-      section { background: white; border: 1px solid #d9dee5; border-radius: 6px; margin-bottom: 18px; padding: 18px; }
-      h2 { margin: 0 0 14px; font-size: 18px; }
-      h3 { margin: 16px 0 10px; font-size: 15px; }
-      table { width: 100%; border-collapse: collapse; font-size: 13px; }
-      th, td { border: 1px solid #e1e5ea; padding: 8px; text-align: left; vertical-align: top; }
-      th { background: #f0f3f7; }
-      label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #52606d; }
-      input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd2d9; border-radius: 4px; }
-      button { background: #0f766e; color: white; border: 0; border-radius: 4px; padding: 9px 14px; cursor: pointer; }
-      pre { background: #111827; color: #e5e7eb; padding: 12px; border-radius: 4px; overflow: auto; max-height: 320px; font-size: 12px; line-height: 1.45; }
-      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-      .muted { color: #657383; font-size: 13px; }
-      .ok { color: #047857; font-weight: bold; }
-      .bad { color: #b91c1c; font-weight: bold; }
-      .path { font-family: Menlo, monospace; font-size: 12px; color: #334155; }
-      .actions { margin-top: 14px; display: flex; gap: 10px; align-items: center; }
-      .refresh { float: right; color: #cbd5e1; font-size: 13px; margin-top: 4px; }
-      .refresh small { color: #94a3b8; }
-      @media (max-width: 900px) {
-        .grid, .grid-2 { grid-template-columns: 1fr; }
-      }
-    </style>
+    <link rel="stylesheet" href="/admin.css">
   </head>
   <body>
     <header>
@@ -40,59 +11,52 @@
       <div class="refresh">Auto refresh: 5s <small id="refreshStatus"></small></div>
       <nav>
         <a href="/">Dashboard</a>
+        <a href="/logs">Logs</a>
         <a href="/tasks">Task Config</a>
         <a href="/onboarding">Onboarding</a>
         <a href="/replay">Replay</a>
         <a href="/monitors">Monitors</a>
         <a href="/rules">Rules</a>
+        <a class="logout" href="/logout">Logout</a>
       </nav>
     </header>
     <main>
       <section>
-        <h2>接入新 MySQL 表</h2>
-        <form method="post" action="/">
-          <div class="grid">
-            <div>
-              <label>Database</label>
-              <input name="databaseName" value="${request.databaseName}">
-            </div>
-            <div>
-              <label>Table</label>
-              <input name="tableName" value="${request.tableName}">
-            </div>
-            <div>
-              <label>DBA Metadata Path</label>
-              <input name="dbaMetadataPath" value="${request.dbaMetadataPath}">
-            </div>
-            <div>
-              <label>Primary Keys</label>
-              <input name="primaryKeys" value="${request.primaryKeys}">
-            </div>
-            <div>
-              <label>Version Column</label>
-              <input name="versionColumn" value="${request.versionColumn}">
-            </div>
-            <div>
-              <label>Partition Column</label>
-              <input name="partitionColumn" value="${request.partitionColumn}">
-            </div>
+        <h2>运行状态</h2>
+        <div class="status-grid" id="serviceStatuses">
+          <#list dashboard.serviceStatuses as service>
+          <div class="status-card">
+            <strong>${service.name}</strong>
+            <span><span class="badge <#if service.running>badge-ok<#else>badge-bad</#if>"><#if service.running>UP<#else>DOWN</#if></span></span>
+            <span>${service.status?html}</span>
+            <span class="muted">${service.ports?html}</span>
           </div>
-          <div class="actions">
-            <button type="submit">生成元数据并全量同步</button>
-            <span class="muted">执行后写 metadata / DDL / merge SQL，并用 MySQL 当前全表重建 ODS 初始快照。</span>
-          </div>
-        </form>
-        <h3>执行计划</h3>
-        <ol>
-          <#list plan as item>
-          <li>${item}</li>
           </#list>
-        </ol>
-        <#if result??>
-        <h3>接入结果</h3>
-        <p>Exit Code: <#if result.exitCode == 0><span class="ok">${result.exitCode}</span><#else><span class="bad">${result.exitCode}</span></#if></p>
-        <pre>${result.output?html}</pre>
-        </#if>
+        </div>
+      </section>
+
+      <section>
+        <h2>运维操作</h2>
+        <div class="action-panel">
+          <div>
+            <label>Biz DT</label>
+            <input id="actionBizDt" value="2026-07-07">
+          </div>
+          <div>
+            <label>DS Mode</label>
+            <select id="dsMode">
+              <option value="--audit">audit</option>
+              <option value="--dry-run">dry-run</option>
+              <option value="--live">live</option>
+            </select>
+          </div>
+          <button type="button" onclick="runAction('refresh-ops', this)">刷新快照</button>
+          <button type="button" onclick="runAction('daily-merge', this)">跑每日 Merge</button>
+          <button type="button" onclick="runAction('full-pipeline', this)">跑 ADS 全链路</button>
+          <button type="button" class="secondary" onclick="runAction('monitor-suite', this)">跑监控</button>
+          <button type="button" class="warn" onclick="runAction('ds-publish', this)">发布 DS</button>
+        </div>
+        <pre id="actionResult"></pre>
       </section>
 
       <section>
@@ -106,19 +70,75 @@
             <th>Primary Keys</th>
             <th>Version</th>
             <th>Partition</th>
+            <th>Action</th>
           </tr>
           <#list tables as table>
           <tr>
             <td>${table.databaseName}</td>
             <td>${table.tableName}</td>
-            <td>${table.odsBinlogTable}</td>
-            <td>${table.odsTable}</td>
-            <td>${table.primaryKeys?join(",")}</td>
-            <td>${table.versionColumn}</td>
-            <td>${table.partitionColumn}</td>
+            <td>${table.odsBinlogTable!""}</td>
+            <td>${table.odsTable!""}</td>
+            <td><#if table.primaryKeys??>${table.primaryKeys?join(",")}</#if></td>
+            <td>${table.versionColumn!""}</td>
+            <td>${table.partitionColumn!""}</td>
+            <td>
+              <button type="button" onclick="showTableMetadata('${table.databaseName?js_string}', '${table.tableName?js_string}')">元数据</button>
+              <button type="button" class="secondary" onclick="setHiveSql('select * from ods.${(table.odsTable!"")?js_string} limit 20')">查 ODS</button>
+              <button type="button" class="warn" onclick="setHiveSql('msck repair table ods.${(table.odsTable!"")?js_string}')">修复分区</button>
+            </td>
           </tr>
           </#list>
         </table>
+        <pre id="tableMetadataResult"></pre>
+      </section>
+
+      <section>
+        <h2>Hive 查询台</h2>
+        <p class="muted">只允许 select/show/desc/describe/msck/use/explain。默认最多返回 100 行。</p>
+        <textarea id="hiveSql">show databases</textarea>
+        <div class="button-row">
+          <button type="button" onclick="runHiveQuery(this)">执行查询</button>
+          <button type="button" class="secondary" onclick="setHiveSql('show databases')">库列表</button>
+          <button type="button" class="secondary" onclick="setHiveSql('show tables in ads')">ADS 表</button>
+          <button type="button" class="secondary" onclick="setHiveSql('select * from ads.ads_comment_dashboard_1d where dt=\\'2026-07-07\\' limit 20')">查 ADS</button>
+          <button type="button" class="warn" onclick="setHiveSql('msck repair table ods.ods_basiccomment_avatar_commentbatchsource_dic')">修复 ODS 分区</button>
+          <button type="button" class="warn" onclick="setHiveSql('msck repair table ads.ads_comment_dashboard_1d')">修复 ADS 分区</button>
+        </div>
+        <pre id="hiveQueryMessage"></pre>
+        <div class="query-result" id="hiveQueryResult"></div>
+      </section>
+
+      <section>
+        <h2>数仓分层数据</h2>
+        <p class="muted">来源优先 HDFS <span class="path">/warehouse</span>，无 HDFS 时回退本地 <span class="path">data/lake</span>。</p>
+        <div id="warehouseLayers">
+          <#list dashboard.warehouseLayers as layer>
+          <div class="layer-block">
+            <h3>${layer.layer} <span class="muted">${layer.tableCount} tables · ${layer.partitionCount} partitions</span></h3>
+            <table>
+              <tr>
+                <th>Table</th>
+                <th>Latest DT</th>
+                <th>Rows</th>
+                <th>Path</th>
+                <th>Sample</th>
+              </tr>
+              <#list layer.tables as table>
+              <tr>
+                <td>${table.table}</td>
+                <td>${table.latestPartition!""}</td>
+                <td>${table.rowCount}</td>
+                <td class="path">${table.latestPath!""}</td>
+                <td><pre>${(table.sample!"")?html}</pre></td>
+              </tr>
+              </#list>
+              <#if layer.tables?size == 0>
+              <tr><td colspan="5" class="muted">no data</td></tr>
+              </#if>
+            </table>
+          </div>
+          </#list>
+        </div>
       </section>
 
       <section>
@@ -139,36 +159,6 @@
       </section>
 
       <section>
-        <h2>Kafka 信息</h2>
-        <p class="muted">Last refresh: <span id="refreshedAt">${dashboard.refreshedAt?html}</span> · Snapshot refresher: <span class="path">docker compose -f docker/docker-compose.yml up -d ops-refresh</span></p>
-        <div class="grid-2">
-          <div>
-            <h3>Topics</h3>
-            <pre id="kafkaTopics" data-follow="true">${dashboard.kafkaTopics?html}</pre>
-          </div>
-          <div>
-            <h3>Kafka Logs</h3>
-            <pre id="kafkaLogs" data-follow="true">${dashboard.kafkaLogs?html}</pre>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <h2>Maxwell 日志</h2>
-        <pre id="maxwellLogs" data-follow="true">${dashboard.maxwellLogs?html}</pre>
-      </section>
-
-      <section>
-        <h2>SparkStreaming 日志</h2>
-        <pre id="sparkStreamingLogs" data-follow="true">${dashboard.sparkStreamingLogs?html}</pre>
-      </section>
-
-      <section>
-        <h2>SparkSQL Merge 日志</h2>
-        <pre id="sparkSqlMergeLogs" data-follow="true">${dashboard.sparkSqlMergeLogs?html}</pre>
-      </section>
-
-      <section>
         <h2>HDFS / Hive</h2>
         <div class="grid-2">
           <div>
@@ -179,28 +169,20 @@
             <h3>Hive Databases</h3>
             <pre id="hiveDatabases" data-follow="true">${dashboard.hiveDatabases?html}</pre>
           </div>
-          <div>
-            <h3>NameNode Logs</h3>
-            <pre id="hdfsNamenodeLogs" data-follow="true">${dashboard.hdfsNamenodeLogs?html}</pre>
-          </div>
-          <div>
-            <h3>HiveServer2 Logs</h3>
-            <pre id="hiveServerLogs" data-follow="true">${dashboard.hiveServerLogs?html}</pre>
-          </div>
         </div>
       </section>
 
-      <section>
-        <h2>容器状态</h2>
-        <pre id="containerStatus" data-follow="true">${dashboard.containerStatus?html}</pre>
-      </section>
-
-      <section>
-        <h2>Admin 日志</h2>
-        <pre id="adminLogs" data-follow="true">${dashboard.adminLogs?html}</pre>
-      </section>
     </main>
     <script>
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
       function nearBottom(el) {
         return el.scrollHeight - el.scrollTop - el.clientHeight < 24;
       }
@@ -218,22 +200,141 @@
         }
       }
 
+      function renderServiceStatuses(services) {
+        var root = document.getElementById("serviceStatuses");
+        if (!root) return;
+        root.innerHTML = (services || []).map(function (service) {
+          var ok = service.running === true;
+          return '<div class="status-card">'
+            + '<strong>' + escapeHtml(service.name) + '</strong>'
+            + '<span><span class="badge ' + (ok ? 'badge-ok' : 'badge-bad') + '">' + (ok ? 'UP' : 'DOWN') + '</span></span>'
+            + '<span>' + escapeHtml(service.status) + '</span>'
+            + '<span class="muted">' + escapeHtml(service.ports) + '</span>'
+            + '</div>';
+        }).join("");
+      }
+
+      function renderWarehouseLayers(layers) {
+        var root = document.getElementById("warehouseLayers");
+        if (!root) return;
+        root.innerHTML = (layers || []).map(function (layer) {
+          var rows = (layer.tables || []).map(function (table) {
+            return '<tr>'
+              + '<td>' + escapeHtml(table.table) + '</td>'
+              + '<td>' + escapeHtml(table.latestPartition) + '</td>'
+              + '<td>' + escapeHtml(table.rowCount) + '</td>'
+              + '<td class="path">' + escapeHtml(table.latestPath) + '</td>'
+              + '<td><pre>' + escapeHtml(table.sample) + '</pre></td>'
+              + '</tr>';
+          }).join("");
+          if (!rows) {
+            rows = '<tr><td colspan="5" class="muted">no data</td></tr>';
+          }
+          return '<div class="layer-block">'
+            + '<h3>' + escapeHtml(layer.layer) + ' <span class="muted">' + escapeHtml(layer.tableCount) + ' tables · ' + escapeHtml(layer.partitionCount) + ' partitions</span></h3>'
+            + '<table><tr><th>Table</th><th>Latest DT</th><th>Rows</th><th>Path</th><th>Sample</th></tr>'
+            + rows
+            + '</table></div>';
+        }).join("");
+      }
+
+      function runAction(action, button) {
+        var payload = {
+          bizDt: document.getElementById("actionBizDt").value,
+          mode: document.getElementById("dsMode").value
+        };
+        var result = document.getElementById("actionResult");
+        var previous = button.textContent;
+        button.disabled = true;
+        button.textContent = "Running";
+        result.textContent = "running " + action + " ...";
+        fetch("/api/actions/" + action, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            result.textContent = "exitCode=" + data.exitCode + "\n" + (data.output || "");
+            refreshDashboard();
+          })
+          .catch(function (error) {
+            result.textContent = String(error);
+          })
+          .finally(function () {
+            button.disabled = false;
+            button.textContent = previous;
+          });
+      }
+
+      function setHiveSql(sql) {
+        document.getElementById("hiveSql").value = sql;
+      }
+
+      function showTableMetadata(databaseName, tableName) {
+        var result = document.getElementById("tableMetadataResult");
+        result.textContent = "loading " + databaseName + "." + tableName + " ...";
+        fetch("/api/metadata/tables/" + encodeURIComponent(databaseName) + "/" + encodeURIComponent(tableName), { cache: "no-store" })
+          .then(function (response) {
+            if (!response.ok) throw new Error("metadata not found");
+            return response.json();
+          })
+          .then(function (data) {
+            result.textContent = JSON.stringify(data, null, 2);
+          })
+          .catch(function (error) {
+            result.textContent = String(error);
+          });
+      }
+
+      function renderHiveResult(data) {
+        var message = document.getElementById("hiveQueryMessage");
+        var result = document.getElementById("hiveQueryResult");
+        message.textContent = "exitCode=" + data.exitCode + "\n" + (data.message || "");
+        if (!data.columns || data.columns.length === 0) {
+          result.innerHTML = "";
+          return;
+        }
+        var header = data.columns.map(function (column) {
+          return "<th>" + escapeHtml(column) + "</th>";
+        }).join("");
+        var rows = (data.rows || []).map(function (row) {
+          return "<tr>" + row.map(function (cell) {
+            return "<td>" + escapeHtml(cell) + "</td>";
+          }).join("") + "</tr>";
+        }).join("");
+        result.innerHTML = "<table><tr>" + header + "</tr>" + rows + "</table>";
+      }
+
+      function runHiveQuery(button) {
+        var previous = button.textContent;
+        button.disabled = true;
+        button.textContent = "Running";
+        document.getElementById("hiveQueryMessage").textContent = "running hive query ...";
+        fetch("/api/hive/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sql: document.getElementById("hiveSql").value, limit: 100 })
+        })
+          .then(function (response) { return response.json(); })
+          .then(renderHiveResult)
+          .catch(function (error) {
+            document.getElementById("hiveQueryMessage").textContent = String(error);
+          })
+          .finally(function () {
+            button.disabled = false;
+            button.textContent = previous;
+          });
+      }
+
       function refreshDashboard() {
         fetch("/api/dashboard", { cache: "no-store" })
           .then(function (response) { return response.json(); })
           .then(function (data) {
-            document.getElementById("refreshedAt").textContent = data.refreshedAt || "";
-            setText("kafkaTopics", data.kafkaTopics);
-            setText("kafkaLogs", data.kafkaLogs);
-            setText("maxwellLogs", data.maxwellLogs);
-            setText("sparkStreamingLogs", data.sparkStreamingLogs);
-            setText("sparkSqlMergeLogs", data.sparkSqlMergeLogs);
             setText("hdfsWarehouseListing", data.hdfsWarehouseListing);
-            setText("hdfsNamenodeLogs", data.hdfsNamenodeLogs);
             setText("hiveDatabases", data.hiveDatabases);
-            setText("hiveServerLogs", data.hiveServerLogs);
-            setText("containerStatus", data.containerStatus);
-            setText("adminLogs", data.adminLogs);
+            renderServiceStatuses(data.serviceStatuses);
+            renderWarehouseLayers(data.warehouseLayers);
             document.getElementById("refreshStatus").textContent = "updated";
           })
           .catch(function () {

@@ -1,8 +1,10 @@
 spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/cdc_warehouse_admin?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
-    username: root
-    password: root
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:cdc_warehouse_admin}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
   freemarker:
     charset: UTF-8
@@ -15,4 +17,26 @@ server:
 warehouse:
   project-root: ../..
   mysql:
-    fallback-demo-data: true
+    fallback-demo-data: false
+  actions:
+    public-enabled: false
+  validation:
+    enabled: false
+    require-project-root: true
+    require-mysql: true
+    require-ops-dir: false
+  auth:
+    admin-user: ${ADMIN_USER:admin}
+    admin-pass: ${ADMIN_PASS:admin123}
+    jwt-secret: ${JWT_SECRET:cdc-warehouse-platform-secret-key-2026-minimum-256-bit-length}
+    jwt-expiration-ms: 86400000
+  hive:
+    jdbc-url: ${HIVE_JDBC_URL:jdbc:hive2://localhost:10000/default}
+    username: ${HIVE_USER:root}
+    password: ${HIVE_PASSWORD:}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs

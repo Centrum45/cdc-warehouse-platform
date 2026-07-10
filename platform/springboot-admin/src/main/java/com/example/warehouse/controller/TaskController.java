@@ -1,14 +1,20 @@
 package com.example.warehouse.controller;
 
+import com.example.warehouse.model.CommandResult;
 import com.example.warehouse.model.SparkTaskConfig;
 import com.example.warehouse.service.TaskConfigService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller
+@Tag(name = "Tasks", description = "Spark task configuration")
 public class TaskController {
     private final TaskConfigService taskConfigService;
 
@@ -17,6 +23,7 @@ public class TaskController {
     }
 
     @GetMapping("/tasks")
+    @Operation(summary = "List task configurations")
     public String tasks(Model model) {
         model.addAttribute("tasks", taskConfigService.listTasks());
         SparkTaskConfig task = new SparkTaskConfig();
@@ -29,11 +36,19 @@ public class TaskController {
     }
 
     @PostMapping("/tasks")
+    @Operation(summary = "Save Spark task configuration")
     public String saveTask(@ModelAttribute SparkTaskConfig task, Model model) {
         taskConfigService.saveTask(task);
         model.addAttribute("tasks", taskConfigService.listTasks());
         model.addAttribute("task", task);
         model.addAttribute("message", "task saved");
         return "tasks";
+    }
+
+    @PostMapping("/api/tasks/run/{taskName}")
+    @ResponseBody
+    @Operation(summary = "Run one configured task")
+    public CommandResult runTask(@PathVariable String taskName) {
+        return taskConfigService.runTask(taskName);
     }
 }

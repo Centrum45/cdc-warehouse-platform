@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  # ------------------------------------------------------------------
+  # Python tests
+  # ------------------------------------------------------------------
+  python-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          python -m unittest discover -s tests -v
+
+  # ------------------------------------------------------------------
+  # Java (SpringBoot) compile check
+  # ------------------------------------------------------------------
+  java-compile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform/springboot-admin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('platform/springboot-admin/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Compile
+        run: mvn compile -B -q
+
+  # ------------------------------------------------------------------
+  # Python syntax + import check (lint-light)
+  # ------------------------------------------------------------------
+  python-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Check syntax (compile all .py files)
+        run: |
+          find . -name "*.py" \
+            -not -path "./.git/*" \
+            -not -path "./docker/hadoop/dist/*" \
+            -not -path "./docker/hive/dist/*" \
+            -not -path "./data/*" \
+            -print0 | xargs -0 python -m py_compile
+
+      - name: Check imports (dry-run)
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, '.')
+          # Verify core modules can be imported
+          from streaming.common.binlog_parser import parse_maxwell_event
+          from streaming.common.checkpoint import FileCheckpoint
+          from warehouse.jobs.delay_gate import can_merge
+          from monitors.notifier import Notifier
+          from monitors.result_store import MonitorResultStore
+          from warehouse.scheduler.dolphinscheduler.ds_api_client import DolphinSchedulerClient
+          print('All core imports OK')
+          "
+
+  # ------------------------------------------------------------------
+  # Shell + Docker Compose static checks
+  # ------------------------------------------------------------------
+  deploy-config-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check shell syntax
+        run: |
+          bash -n deploy/server/*.sh deploy/prod/*.sh scripts/*.sh
+
+      - name: Check server install dry-run
+        run: |
+          deploy/server/install.sh --dry-run
+
+      - name: Check Docker Compose config
+        run: |
+          docker compose -f docker/docker-compose.yml config --quiet
+          docker compose -f docker/docker-compose.yml -f docker/docker-compose.hive.yml config --quiet
+
+      - name: Check deployment guide code fences
+        run: |
+          python scripts/validate_deployment_config.py

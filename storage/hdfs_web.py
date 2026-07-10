@@ -7,7 +7,12 @@ from dataclasses import dataclass
 from typing import Any, Iterable
 from urllib.error import HTTPError
 from urllib.parse import urlencode, urlparse, urlunparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 @dataclass(frozen=True)
@@ -69,12 +74,18 @@ class WebHdfsLake:
         return list(csv.DictReader(io.StringIO(text)))
 
     def read_text(self, path: HdfsPath) -> str:
+        request = Request(self._url(path, "OPEN"), method="GET")
+        opener = build_opener(_NoRedirect)
         try:
-            with urlopen(self._url(path, "OPEN"), timeout=20) as response:
+            with opener.open(request, timeout=20) as response:
                 return response.read().decode("utf-8")
         except HTTPError as exc:
             if exc.code == 404:
                 return ""
+            if exc.code in (307, 308):
+                location = self._rewrite_redirect(exc.headers["Location"])
+                with urlopen(location, timeout=30) as response:
+                    return response.read().decode("utf-8")
             raise
 
     def write_text(self, path: HdfsPath, text: str) -> None:
@@ -126,7 +137,7 @@ class WebHdfsLake:
         parsed = urlparse(location)
         if self._namenode_host in {"localhost", "127.0.0.1"}:
             netloc = f"{self._namenode_host}:{parsed.port or 9864}"
-        elif parsed.hostname in {"localhost", "127.0.0.1"}:
+        elif parsed.hostname in {"localhost", "127.0.0.1", "0.0.0.0"}:
             netloc = f"hdfs-datanode:{parsed.port or 9864}"
         else:
             return location

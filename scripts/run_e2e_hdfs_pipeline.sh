@@ -13,6 +13,19 @@ ops_log="data/ops/e2e_hdfs_pipeline.log"
 
 mkdir -p data/ops
 
+find_pyspark_python() {
+  for candidate in "${PYSPARK_PYTHON:-}" python3 /Library/Frameworks/Python.framework/Versions/3.7/bin/python3; do
+    if [[ -z "${candidate}" ]]; then
+      continue
+    fi
+    if command -v "${candidate}" >/dev/null 2>&1 && "${candidate}" -c 'import pyspark' >/dev/null 2>&1; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${ops_log}"
 }
@@ -57,6 +70,8 @@ docker compose -f "${compose_file}" -f "${hive_compose_file}" up -d \
 wait_until "mysql healthy" "docker inspect -f '{{.State.Health.Status}}' cdc-warehouse-mysql | grep -q healthy" 120
 wait_until "kafka healthy" "docker inspect -f '{{.State.Health.Status}}' cdc-warehouse-kafka | grep -q healthy" 120
 wait_until "hdfs ready" "docker exec cdc-warehouse-hdfs-namenode hdfs dfs -ls /warehouse" 120
+docker exec cdc-warehouse-hdfs-namenode hdfs dfsadmin -safemode leave >> "${ops_log}" 2>&1 || true
+wait_until "hdfs safemode off" "docker exec cdc-warehouse-hdfs-namenode hdfs dfsadmin -safemode get | grep -q 'Safe mode is OFF'" 120
 wait_until "hive ready" "docker exec cdc-warehouse-hive-server beeline -u jdbc:hive2://localhost:10000 -e 'show databases;'" 180
 
 log "init hdfs/hive ddl"
@@ -89,7 +104,11 @@ wait_until "spark-streaming hdfs binlog ${binlog_path}" \
   120
 
 log "run pyspark ods merge"
-python3 scripts/spark_sql_ods_merge_daily.py \
+pyspark_python="$(find_pyspark_python)" || {
+  log "FAIL pyspark python not found"
+  exit 1
+}
+PYSPARK_PYTHON="${pyspark_python}" PYSPARK_DRIVER_PYTHON="${pyspark_python}" "${pyspark_python}" scripts/spark_sql_ods_merge_daily.py \
   --lake-root "${lake_root}" \
   --biz-dt "${biz_dt}" \
   --engine pyspark >> "${ops_log}" 2>&1
