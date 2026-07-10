@@ -26,6 +26,7 @@ def check_code_fences():
         "docs/deployment_guide.md",
         "docs/deployment_guide_zh.md",
         "docs/production_checklist.md",
+        "docs/realtime_kudu_impala.md",
         "deploy/server/README.md",
     ]:
         text = read(path)

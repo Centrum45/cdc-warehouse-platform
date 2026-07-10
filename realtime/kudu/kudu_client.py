@@ -17,6 +17,7 @@ Environment / config:
 """
 
 import os
+from pathlib import Path
 from typing import Any
 
 
@@ -28,10 +29,18 @@ class KuduClient:
         impala_host: str | None = None,
         impala_port: int = 21050,
         kudu_masters: str | None = None,
+        user: str | None = None,
+        password: str | None = None,
+        auth_mechanism: str | None = None,
+        use_ssl: bool | None = None,
     ) -> None:
         self.impala_host = impala_host or os.environ.get("IMPALA_HOST", "localhost")
         self.impala_port = impala_port or int(os.environ.get("IMPALA_PORT", "21050"))
         self.kudu_masters = kudu_masters or os.environ.get("KUDU_MASTERS", "")
+        self.user = user or os.environ.get("IMPALA_USER")
+        self.password = password or os.environ.get("IMPALA_PASSWORD")
+        self.auth_mechanism = auth_mechanism or os.environ.get("IMPALA_AUTH_MECHANISM")
+        self.use_ssl = use_ssl if use_ssl is not None else os.environ.get("IMPALA_USE_SSL", "").lower() in ("1", "true", "yes")
         self._conn = None
 
     @property
@@ -55,10 +64,16 @@ class KuduClient:
             raise RuntimeError(
                 "impyla not installed. Run: pip install impyla thrift-sasl"
             )
-        self._conn = impala.dbapi.connect(
-            host=self.impala_host,
-            port=self.impala_port,
-        )
+        kwargs: dict[str, Any] = {"host": self.impala_host, "port": self.impala_port}
+        if self.user:
+            kwargs["user"] = self.user
+        if self.password:
+            kwargs["password"] = self.password
+        if self.auth_mechanism:
+            kwargs["auth_mechanism"] = self.auth_mechanism
+        if self.use_ssl:
+            kwargs["use_ssl"] = True
+        self._conn = impala.dbapi.connect(**kwargs)
         return self._conn
 
     def close(self) -> None:
@@ -75,17 +90,28 @@ class KuduClient:
 
     def create_table(self, ddl: str) -> dict[str, Any]:
         """Execute a CREATE TABLE ... STORED AS KUDU statement."""
+        return self.execute(ddl)
+
+    def execute(self, sql: str) -> dict[str, Any]:
+        """Execute DDL/DML against Impala."""
         if not self.is_available:
             return {"success": False, "msg": "impyla not installed"}
         conn = self._connect()
         cursor = conn.cursor()
         try:
-            cursor.execute(ddl)
-            return {"success": True, "ddl": ddl}
+            cursor.execute(sql)
+            return {"success": True, "sql": sql[:120]}
         except Exception as exc:
             return {"success": False, "msg": str(exc)}
         finally:
             cursor.close()
+
+    def create_database(self, db: str) -> dict[str, Any]:
+        return self.execute(f"CREATE DATABASE IF NOT EXISTS {db}")
+
+    def execute_file(self, path: Path) -> list[dict[str, Any]]:
+        statements = [stmt.strip() for stmt in path.read_text(encoding="utf-8").split(";") if stmt.strip()]
+        return [self.execute(stmt) for stmt in statements]
 
     def table_exists(self, db: str, table: str) -> bool:
         if not self.is_available:
@@ -119,10 +145,13 @@ class KuduClient:
         """
         if not rows:
             return {"success": True, "upserted": 0}
+        columns = list(rows[0].keys())
+        for row in rows:
+            missing = [col for col in columns if col not in row]
+            if missing:
+                return {"success": False, "upserted": 0, "msg": f"missing columns: {missing}"}
         if not self.is_available:
             return {"success": False, "msg": "impyla not installed"}
-
-        columns = list(rows[0].keys())
         col_list = ", ".join(columns)
         placeholders = ", ".join(["%s"] * len(columns))
         sql = f"UPSERT INTO {db}.{table} ({col_list}) VALUES ({placeholders})"

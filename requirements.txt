@@ -12,3 +12,4 @@ PyYAML>=5.1,<7.0
 # Install only when connecting to real Kudu/Impala:
 # impyla>=0.18.0
 # thrift-sasl>=0.4.3
+# Run: python3 scripts/run_realtime_kudu_smoke.py --real

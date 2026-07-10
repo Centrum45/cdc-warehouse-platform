@@ -92,9 +92,13 @@ def _upsert_to_kudu(
     try:
         if rows_to_upsert:
             res = client.upsert_rows(db, table, rows_to_upsert, meta["primary_keys"])
+            if not res.get("success"):
+                return res
             result["upserted"] = res.get("upserted", 0)
         if keys_to_delete:
             res = client.delete_rows(db, table, keys_to_delete)
+            if not res.get("success"):
+                return res
             result["deleted"] = res.get("deleted", 0)
         result["success"] = True
     except Exception as exc:
@@ -183,10 +187,12 @@ def upsert_rows(
         result = _upsert_to_kudu(rows_to_upsert, keys_to_delete, meta)
         if result.get("skipped"):
             print(f"[kafka_to_kudu] real Kudu skipped: {result.get('reason')}. Falling back to CSV.")
-        else:
+        elif result.get("success"):
             print(f"[kafka_to_kudu] real Kudu: {result}")
             checkpoint.save_offset(topic, start_offset + len(events))
             return kudu_root / f"realtime.{meta['impala_table']}.kudu"
+        else:
+            raise RuntimeError(f"real Kudu sink failed: {result.get('msg', result)}")
 
     # --- CSV simulation path ---
     table_path = kudu_root / f"realtime.{meta['impala_table']}.csv"

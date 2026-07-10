@@ -553,6 +553,18 @@ DS_ENDPOINT=http://dolphinscheduler.prod.example.com:12345/dolphinscheduler
 DS_TOKEN=your_ds_token
 ```
 
+Optional realtime Kudu/Impala env:
+
+```env
+IMPALA_HOST=impala.prod.example.com
+IMPALA_PORT=21050
+IMPALA_USER=cdc_user
+IMPALA_PASSWORD=your_password
+IMPALA_AUTH_MECHANISM=PLAIN
+KUDU_MASTERS=kudu-master-1.prod.example.com:7051,kudu-master-2.prod.example.com:7051
+USE_REAL_KUDU=true
+```
+
 Protect env files:
 
 ```bash
@@ -630,6 +642,13 @@ ODS snapshot partition
 ADS partition
 Hive ODS count
 Hive ADS count
+```
+
+Realtime Kudu/Impala smoke, when real cluster env is configured:
+
+```bash
+cd /opt/cdc-warehouse-platform
+python3 scripts/run_realtime_kudu_smoke.py --real
 ```
 
 Run smoke and trigger ODS merge:

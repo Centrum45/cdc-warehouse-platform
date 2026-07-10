@@ -553,6 +553,18 @@ DS_ENDPOINT=http://dolphinscheduler.prod.example.com:12345/dolphinscheduler
 DS_TOKEN=your_ds_token
 ```
 
+可选实时 Kudu/Impala 配置：
+
+```env
+IMPALA_HOST=impala.prod.example.com
+IMPALA_PORT=21050
+IMPALA_USER=cdc_user
+IMPALA_PASSWORD=your_password
+IMPALA_AUTH_MECHANISM=PLAIN
+KUDU_MASTERS=kudu-master-1.prod.example.com:7051,kudu-master-2.prod.example.com:7051
+USE_REAL_KUDU=true
+```
+
 保护 env 文件权限：
 
 ```bash
@@ -630,6 +642,13 @@ ODS snapshot partition
 ADS partition
 Hive ODS count
 Hive ADS count
+```
+
+如果生产已经有 Kudu/Impala 集群，也可以跑实时链路 smoke：
+
+```bash
+cd /opt/cdc-warehouse-platform
+python3 scripts/run_realtime_kudu_smoke.py --real
 ```
 
 触发 ODS merge 并验收：

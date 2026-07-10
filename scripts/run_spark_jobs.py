@@ -34,10 +34,10 @@ def run_offline() -> None:
 
 def run_realtime() -> None:
     if has_pyspark():
-        from streaming.realtime_sink.pyspark_kafka_to_kudu import run_local_file_upsert
+        from streaming.realtime_sink.pyspark_kafka_to_kudu import run_all_tables
 
         try:
-            run_local_file_upsert("data/kafka/cdc.incremental.binlog.jsonl", "data/kudu_pyspark")
+            run_all_tables("data/kafka/cdc.incremental.binlog.jsonl", "data/kudu_pyspark")
             print("engine=pyspark realtime=ok")
             return
         except Exception as exc:

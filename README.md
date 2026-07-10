@@ -74,6 +74,20 @@ spark-submit --master local[2] streaming/realtime_sink/pyspark_kafka_to_kudu.py 
 spark-submit --master yarn streaming/offline_sink/pyspark_kafka_to_hdfs.py kafka kafka:9092 cdc.incremental.binlog hdfs:///warehouse /checkpoint/cdc/offline
 ```
 
+Realtime Kudu/Impala:
+
+```bash
+# local CSV simulation
+python3 scripts/run_realtime_kudu_smoke.py --dry-run
+python3 streaming/realtime_sink/kafka_to_kudu.py
+
+# real Impala/Kudu, after setting IMPALA_* and KUDU_MASTERS
+python3 -m realtime.impala.bootstrap
+python3 scripts/run_realtime_kudu_smoke.py --real
+```
+
+See `docs/realtime_kudu_impala.md`.
+
 Onboard MySQL table to Hive:
 
 ```bash
@@ -156,6 +170,7 @@ docs/deployment_guide.md
 docs/deployment_guide_zh.md
 docs/docker_runbook.md
 docs/deployment_profiles.md
+docs/realtime_kudu_impala.md
 deploy/server/README.md
 ```
 
