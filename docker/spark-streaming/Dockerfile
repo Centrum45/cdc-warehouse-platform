@@ -1,11 +1,14 @@
-FROM confluentinc/cp-kafka:7.6.1
+FROM apache/spark:3.5.1
 
 USER root
 WORKDIR /workspace
+ENV PATH="/opt/spark/bin:${PATH}"
+ARG SPARK_KAFKA_PACKAGE=org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1
 
-COPY requirements.txt /tmp/requirements.txt
-RUN python3 -m pip install --no-cache-dir -r /tmp/requirements.txt
+RUN mkdir -p /home/spark/.ivy2/cache /home/spark/.ivy2/jars \
+    && chown -R spark:spark /home/spark/.ivy2 \
+    && su spark -s /bin/sh -c "/opt/spark/bin/spark-submit --master local[1] --packages ${SPARK_KAFKA_PACKAGE} --class org.apache.spark.examples.SparkPi /opt/spark/examples/jars/spark-examples_2.12-3.5.1.jar 1"
 
-USER appuser
+USER spark
 
-CMD ["python3", "scripts/spark_streaming_kafka_to_hdfs_loop.py"]
+CMD ["spark-submit", "--version"]

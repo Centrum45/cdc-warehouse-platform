@@ -7,6 +7,5 @@ create external table if not exists dwt.dwt_comment_batch_topic_td (
   latest_batch_time string
 )
 partitioned by (dt string)
-row format delimited fields terminated by ','
-stored as textfile
+stored as parquet
 location '/warehouse/dwt/dwt_comment_batch_topic_td';

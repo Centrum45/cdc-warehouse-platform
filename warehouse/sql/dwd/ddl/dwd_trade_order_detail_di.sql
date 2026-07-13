@@ -11,6 +11,5 @@ create external table if not exists dwd.dwd_trade_order_detail_di (
   utime string
 )
 partitioned by (dt string)
-row format delimited fields terminated by ','
-stored as textfile
+stored as parquet
 location '/warehouse/dwd/dwd_trade_order_detail_di';

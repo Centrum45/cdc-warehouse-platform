@@ -6,6 +6,5 @@ create external table if not exists dim.dim_comment_batch_type (
   is_priority int
 )
 partitioned by (dt string)
-row format delimited fields terminated by ','
-stored as textfile
+stored as parquet
 location '/warehouse/dim/dim_comment_batch_type';

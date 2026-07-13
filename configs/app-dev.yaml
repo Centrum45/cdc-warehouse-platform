@@ -2,8 +2,9 @@
 # Merged on top of app.yaml when ENVIRONMENT=dev (default)
 
 storage:
-  type: local
-  warehouse_root: data/lake
+  type: hdfs
+  warehouse_root: hdfs://localhost:8020/warehouse
+  local_debug_root: data/lake
 
 pipeline:
   default_process_date: "2026-07-08"

@@ -8,6 +8,5 @@ create external table if not exists dwt.dwt_trade_user_td (
   last_order_date string
 )
 partitioned by (dt string)
-row format delimited fields terminated by ','
-stored as textfile
+stored as parquet
 location '/warehouse/dwt/dwt_trade_user_td';

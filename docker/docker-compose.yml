@@ -96,6 +96,13 @@ services:
       HIVE_JDBC_URL: jdbc:hive2://hive-server:10000/default
       HIVE_USER: root
       HIVE_PASSWORD:
+      IMPALA_JDBC_URL: jdbc:hive2://host.docker.internal:21050/realtime;transportMode=binary;auth=noSasl
+      IMPALA_HOST: host.docker.internal
+      IMPALA_PORT: 21050
+      IMPALA_USER:
+      IMPALA_PASSWORD:
+      KUDU_MASTER_URL: http://localhost:8051
+      IMPALA_UI_URL: http://localhost:25000
     ports:
       - "8080:8080"
     volumes:
@@ -121,12 +128,15 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       LAKE_ROOT: ${LAKE_ROOT:-hdfs://hdfs-namenode:8020/warehouse}
       SPARK_STREAMING_INTERVAL_SECONDS: ${SPARK_STREAMING_INTERVAL_SECONDS:-5}
-      SPARK_STREAMING_MAX_MESSAGES: ${SPARK_STREAMING_MAX_MESSAGES:-500}
-      SPARK_STREAMING_TIMEOUT_MS: ${SPARK_STREAMING_TIMEOUT_MS:-10000}
+      SPARK_STREAMING_CHECKPOINT: ${SPARK_STREAMING_CHECKPOINT:-hdfs://hdfs-namenode:8020/warehouse/checkpoints/offline_sink}
+      SPARK_KAFKA_PACKAGE: ${SPARK_KAFKA_PACKAGE:-org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1}
+      SPARK_STARTING_OFFSETS: ${SPARK_STARTING_OFFSETS:-latest}
+      SPARK_MAX_OFFSETS_PER_TRIGGER: ${SPARK_MAX_OFFSETS_PER_TRIGGER:-1000}
+      SPARK_BAD_RECORDS_PATH: ${SPARK_BAD_RECORDS_PATH:-}
     volumes:
       - ..:/workspace
     healthcheck:
-      test: ["CMD-SHELL", "python3 --version >/dev/null && kafka-topics --bootstrap-server kafka:9092 --list >/dev/null"]
+      test: ["CMD-SHELL", "spark-submit --version >/dev/null 2>&1"]
       interval: 20s
       timeout: 10s
       retries: 10
@@ -134,13 +144,7 @@ services:
       - sh
       - -c
       - |
-        python3 scripts/spark_streaming_kafka_to_hdfs_loop.py \
-          --topic "$${KAFKA_TOPIC}" \
-          --bootstrap-server "$${KAFKA_BOOTSTRAP_SERVERS}" \
-          --lake-root "$${LAKE_ROOT}" \
-          --interval-seconds "$${SPARK_STREAMING_INTERVAL_SECONDS}" \
-          --max-messages "$${SPARK_STREAMING_MAX_MESSAGES}" \
-          --timeout-ms "$${SPARK_STREAMING_TIMEOUT_MS}"
+        bash deploy/run_job.sh spark-streaming
 
   dolphinscheduler:
     image: apache/dolphinscheduler-standalone-server:3.2.1

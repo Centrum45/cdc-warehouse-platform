@@ -11,7 +11,5 @@ create external table ods.ods_user_user_info_dic (
   ver int
 )
 partitioned by (dt string)
-row format delimited fields terminated by ','
-stored as textfile
-location '/warehouse/ods/db=user/table=user_info'
-tblproperties ('skip.header.line.count'='1');
+stored as parquet
+location '/warehouse/ods/db=user/table=user_info';

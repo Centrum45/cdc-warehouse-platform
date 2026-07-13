@@ -11,12 +11,19 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from ingestion.bootstrap.mysql_bootstrap import bootstrap_table
+from storage.hdfs_web import WebHdfsLake, is_hdfs_root
+from storage.binlog_parquet import event_to_binlog_row, read_hdfs_parquet, read_local_parquet, write_hdfs_parquet, write_local_parquet
+from storage.parquet_table import parquet_bytes
+from storage.parquet_table import write_local_parquet as write_table_parquet
 from storage.local_lake import LocalLake
-from streaming.offline_sink.kafka_to_local_lake import sink_events
 from warehouse.jobs.merge_ods_snapshot import run_merge
+from warehouse.jobs.delay_gate import write_progress
 
 
-def replace_ods_binlog(metadata_path: Path, lake_root: Path, event_file: Path) -> list[Path]:
+DEFAULT_HDFS_ROOT = "hdfs://localhost:8020/warehouse"
+
+
+def replace_ods_binlog(metadata_path: Path, lake_root: str | Path, event_file: Path) -> list[object]:
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     database = metadata["source_database"]
     table = metadata["source_table"]
@@ -29,18 +36,58 @@ def replace_ods_binlog(metadata_path: Path, lake_root: Path, event_file: Path) -
                 continue
             event = json.loads(line)
             dt = str(event["data"][partition_column])[:10]
-            grouped[dt].append({"content": event})
+            grouped[dt].append(event_to_binlog_row(event))
 
-    lake = LocalLake(lake_root)
-    written: list[Path] = []
+    lake = WebHdfsLake(str(lake_root)) if is_hdfs_root(lake_root) else LocalLake(Path(lake_root))
+    written: list[object] = []
     for dt, rows in grouped.items():
-        output_path = lake.binlog_partition(database, table, dt) / "part-00000.jsonl"
-        lake.write_jsonl(output_path, rows)
+        output_path = lake.binlog_partition(database, table, dt) / "part-00000.parquet"
+        if isinstance(lake, WebHdfsLake):
+            lake.delete(output_path.parent, recursive=True)
+            write_hdfs_parquet(lake, output_path, rows)
+        else:
+            for old_file in output_path.parent.glob("part-*"):
+                old_file.unlink()
+            write_local_parquet(output_path, rows)
         written.append(output_path)
     return written
 
 
-def replace_ods_snapshot(metadata_path: Path, lake_root: Path, event_file: Path) -> list[Path]:
+def append_ods_binlog(metadata_path: Path, lake_root: str | Path, event_file: Path, progress_root: Path | None) -> list[object]:
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    database = metadata["source_database"]
+    table = metadata["source_table"]
+    partition_column = metadata["partition_column"]
+    grouped: dict[str, list[dict]] = defaultdict(list)
+
+    with event_file.open("r", encoding="utf-8") as fp:
+        for line in fp:
+            if not line.strip():
+                continue
+            event = json.loads(line)
+            dt = str(event["data"][partition_column])[:10]
+            grouped[dt].append(event_to_binlog_row(event))
+            if progress_root:
+                write_progress(progress_root, database, table, int(event["ts"]), dt)
+
+    lake = WebHdfsLake(str(lake_root)) if is_hdfs_root(lake_root) else LocalLake(Path(lake_root))
+    written: list[object] = []
+    for dt, rows in grouped.items():
+        output_path = lake.binlog_partition(database, table, dt) / "part-00000.parquet"
+        if isinstance(lake, WebHdfsLake):
+            existing = read_hdfs_parquet(lake, output_path)
+            lake.delete(output_path.parent, recursive=True)
+            write_hdfs_parquet(lake, output_path, existing + rows)
+        else:
+            existing = read_local_parquet(output_path)
+            for old_file in output_path.parent.glob("part-*"):
+                old_file.unlink()
+            write_local_parquet(output_path, existing + rows)
+        written.append(output_path)
+    return written
+
+
+def replace_ods_snapshot(metadata_path: Path, lake_root: str | Path, event_file: Path) -> list[object]:
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     database = metadata["source_database"]
     table = metadata["source_table"]
@@ -57,19 +104,25 @@ def replace_ods_snapshot(metadata_path: Path, lake_root: Path, event_file: Path)
             row["dt"] = str(event["data"][partition_column])[:10]
             grouped[row["dt"]].append(row)
 
-    lake = LocalLake(lake_root)
-    written: list[Path] = []
+    lake = WebHdfsLake(str(lake_root)) if is_hdfs_root(lake_root) else LocalLake(Path(lake_root))
+    written: list[object] = []
     for dt, rows in grouped.items():
-        output_path = lake.ods_partition(database, table, dt) / "part-00000.csv"
-        lake.write_csv(output_path, rows, columns)
+        output_path = lake.ods_partition(database, table, dt) / "part-00000.parquet"
+        if isinstance(lake, WebHdfsLake):
+            lake.delete(output_path.parent, recursive=True)
+            lake.write_bytes(output_path, parquet_bytes(rows, columns))
+        else:
+            for old_file in output_path.parent.glob("part-*"):
+                old_file.unlink()
+            write_table_parquet(output_path, rows, columns)
         written.append(output_path)
     return written
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Bootstrap a MySQL table into local lake as Maxwell bootstrap-insert events.")
+    parser = argparse.ArgumentParser(description="Bootstrap a MySQL table into HDFS ods_binlog as Maxwell bootstrap-insert events.")
     parser.add_argument("metadata_path", help="metadata/tables/<db>.<table>.json")
-    parser.add_argument("--lake-root", default="data/lake")
+    parser.add_argument("--lake-root", default=DEFAULT_HDFS_ROOT)
     parser.add_argument("--output", default=None)
     parser.add_argument("--progress-root", default="data/progress")
     parser.add_argument("--container", default="cdc-warehouse-mysql")
@@ -87,17 +140,19 @@ def main() -> None:
     print(f"bootstrap_events: {event_file}")
 
     if args.replace_binlog:
-        written = replace_ods_binlog(metadata_path, Path(args.lake_root), event_file)
+        written = replace_ods_binlog(metadata_path, args.lake_root, event_file)
     else:
-        written = sink_events(event_file, Path(args.lake_root), None, Path(args.progress_root))
+        written = append_ods_binlog(metadata_path, args.lake_root, event_file, Path(args.progress_root))
     for path in written:
         print(f"ods_binlog: {path}")
 
     if args.replace_ods:
-        for output_path in replace_ods_snapshot(metadata_path, Path(args.lake_root), event_file):
+        for output_path in replace_ods_snapshot(metadata_path, args.lake_root, event_file):
             print(f"ods_replaced: {output_path}")
 
     if args.merge:
+        if is_hdfs_root(args.lake_root):
+            raise SystemExit("bootstrap --merge local fallback does not support HDFS. Run scripts/spark_sql_ods_merge_daily.py with --engine pyspark.")
         for path in written:
             partition_name = path.parent.name
             process_dt = partition_name[3:] if partition_name.startswith("dt=") else partition_name

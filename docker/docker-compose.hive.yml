@@ -24,7 +24,7 @@ services:
       - |
         test -x /opt/hadoop/bin/hdfs || { echo "missing Hadoop. run ./scripts/download_hadoop_hive.sh"; exit 1; }
         mkdir -p /workspace/data/hdfs/name
-        if [ ! -d /workspace/data/hdfs/name/current ]; then
+        if [ ! -f /workspace/data/hdfs/name/current/VERSION ]; then
           hdfs namenode -format -force -nonInteractive
         fi
         hdfs namenode
@@ -90,7 +90,8 @@ services:
         until hdfs dfs -ls / >/dev/null 2>&1; do sleep 2; done
         hdfs dfs -mkdir -p /tmp /warehouse/hive /warehouse/ods_binlog /warehouse/ods /warehouse/dim /warehouse/dwd /warehouse/dws /warehouse/dwt /warehouse/ads
         hdfs dfs -chmod -R 777 /tmp /warehouse
-        if [ ! -d /workspace/data/hive/metastore_db ]; then
+        if [ ! -f /workspace/data/hive/metastore_db/service.properties ]; then
+          rm -rf /workspace/data/hive/metastore_db
           schematool -dbType derby -initSchema
         fi
         hiveserver2

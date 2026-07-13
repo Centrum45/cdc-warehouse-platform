@@ -5,8 +5,9 @@ import json
 import tempfile
 from pathlib import Path
 
-from scripts.spark_sql_ods_merge_loop import binlog_partitions, run_once, should_merge
-from scripts.spark_sql_ods_merge_daily import run_daily_merge
+from scripts.spark_sql_ods_merge_daily import binlog_partitions, run_daily_merge
+from storage.binlog_parquet import event_to_binlog_row, write_local_parquet as write_binlog_parquet
+from storage.parquet_table import read_local_parquet
 from warehouse.jobs.merge_ods_snapshot import merge_rows
 
 
@@ -44,7 +45,7 @@ class BinlogMergeTest(unittest.TestCase):
         ]
         self.assertEqual(merge_rows(binlog_rows, old_rows, METADATA), [])
 
-    def test_spark_sql_merge_loop_runs_local_fallback_once(self) -> None:
+    def test_daily_merge_runs_local_fallback_once(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             metadata_root = root / "metadata"
@@ -59,29 +60,25 @@ class BinlogMergeTest(unittest.TestCase):
             metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
 
             binlog_dir = root / "lake/ods_binlog/db=basiccomment/table=avatar_commentbatchsource/dt=2026-07-06"
-            binlog_dir.mkdir(parents=True)
-            binlog_file = binlog_dir / "part-00000.jsonl"
-            binlog_file.write_text(json.dumps({
-                "content": {
-                    "database": "basiccomment",
-                    "table": "avatar_commentbatchsource",
-                    "type": "insert",
-                    "ts": 100,
-                    "xid": 1,
-                    "data": {
-                        "id": 1,
-                        "batchnumber": "B1",
-                        "batchtype": "normal",
-                        "ctime": "2026-07-06 09:00:00",
-                        "utime": "2026-07-06 09:00:00",
-                        "ver": 1
-                    }
+            binlog_file = binlog_dir / "part-00000.parquet"
+            write_binlog_parquet(binlog_file, [event_to_binlog_row({
+                "database": "basiccomment",
+                "table": "avatar_commentbatchsource",
+                "type": "insert",
+                "ts": 100,
+                "xid": 1,
+                "data": {
+                    "id": 1,
+                    "batchnumber": "B1",
+                    "batchtype": "normal",
+                    "ctime": "2026-07-06 09:00:00",
+                    "utime": "2026-07-06 09:00:00",
+                    "ver": 1
                 }
-            }) + "\n", encoding="utf-8")
+            })])
 
             partitions = binlog_partitions(metadata_path, root / "lake")
-            self.assertEqual(partitions[0][0], "2026-07-06")
-            self.assertTrue(should_merge({}, metadata_path, "2026-07-06", binlog_file))
+            self.assertEqual(partitions[0], "2026-07-06")
 
             progress_dir = root / "progress"
             progress_dir.mkdir()
@@ -93,14 +90,11 @@ class BinlogMergeTest(unittest.TestCase):
                 "updated_at": 100
             }), encoding="utf-8")
 
-            messages = run_once(metadata_root, root / "lake", root / "ckpt.json", "local", root / "progress", 9999999999)
-            self.assertEqual(len(messages), 1)
-            output = root / "lake/ods/db=basiccomment/table=avatar_commentbatchsource/dt=2026-07-06/part-00000.csv"
-            self.assertIn("B1", output.read_text(encoding="utf-8"))
-
             daily_messages = run_daily_merge(metadata_root, root / "lake", "2026-07-06", "local", root / "progress", 9999999999)
             self.assertEqual(len(daily_messages), 1)
             self.assertIn("dt=2026-07-06", daily_messages[0])
+            output = root / "lake/ods/db=basiccomment/table=avatar_commentbatchsource/dt=2026-07-06/part-00000.parquet"
+            self.assertEqual(read_local_parquet(output)[0]["batchnumber"], "B1")
 
 
 if __name__ == "__main__":

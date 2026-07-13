@@ -6,7 +6,8 @@ import unittest
 from pathlib import Path
 
 from ingestion.bootstrap.mysql_bootstrap import build_bootstrap_events, build_select_sql, rows_from_tsv, write_events
-from streaming.offline_sink.kafka_to_local_lake import sink_events
+from scripts.bootstrap_mysql_table import append_ods_binlog
+from storage.binlog_parquet import read_local_parquet, row_to_event
 
 
 METADATA = {
@@ -42,6 +43,8 @@ class MysqlBootstrapTest(unittest.TestCase):
     def test_bootstrap_events_append_to_ods_binlog(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            metadata_path = root / "metadata.json"
+            metadata_path.write_text(json.dumps(METADATA), encoding="utf-8")
             first_event = build_bootstrap_events(
                 [
                     {
@@ -74,12 +77,12 @@ class MysqlBootstrapTest(unittest.TestCase):
             )
             first_file = write_events(first_event, root / "first.jsonl")
             second_file = write_events(second_event, root / "second.jsonl")
-            sink_events(first_file, root / "lake")
-            written = sink_events(second_file, root / "lake")
+            append_ods_binlog(metadata_path=metadata_path, lake_root=root / "lake", event_file=first_file, progress_root=None)
+            written = append_ods_binlog(metadata_path=metadata_path, lake_root=root / "lake", event_file=second_file, progress_root=None)
 
-            records = [json.loads(line) for line in written[0].read_text(encoding="utf-8").splitlines()]
+            records = [row_to_event(row) for row in read_local_parquet(written[0])]
             self.assertEqual(len(records), 2)
-            self.assertEqual(records[0]["content"]["type"], "bootstrap-insert")
+            self.assertEqual(records[0]["type"], "bootstrap-insert")
 
 
 if __name__ == "__main__":

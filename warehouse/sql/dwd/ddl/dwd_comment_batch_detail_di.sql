@@ -10,6 +10,5 @@ create external table if not exists dwd.dwd_comment_batch_detail_di (
   ver int
 )
 partitioned by (dt string)
-row format delimited fields terminated by ','
-stored as textfile
+stored as parquet
 location '/warehouse/dwd/dwd_comment_batch_detail_di';

@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import csv
-import io
 import json
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 from urllib.error import HTTPError
 from urllib.parse import urlencode, urlparse, urlunparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
@@ -51,44 +49,29 @@ class WebHdfsLake:
     def ods_partition(self, database: str, table: str, dt: str) -> HdfsPath:
         return self.root / "ods" / f"db={database}" / f"table={table}" / f"dt={dt}"
 
-    def write_jsonl(self, path: HdfsPath, rows: Iterable[dict[str, Any]]) -> None:
-        payload = "".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in rows)
-        self.write_text(path, payload)
-
-    def read_jsonl(self, path: HdfsPath) -> list[dict[str, Any]]:
-        text = self.read_text(path)
-        return [json.loads(line) for line in text.splitlines() if line.strip()]
-
-    def write_csv(self, path: HdfsPath, rows: list[dict[str, Any]], columns: list[str]) -> None:
-        buffer = io.StringIO()
-        writer = csv.DictWriter(buffer, fieldnames=columns)
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({column: row.get(column, "") for column in columns})
-        self.write_text(path, buffer.getvalue())
-
-    def read_csv(self, path: HdfsPath) -> list[dict[str, str]]:
-        text = self.read_text(path)
-        if not text:
-            return []
-        return list(csv.DictReader(io.StringIO(text)))
-
     def read_text(self, path: HdfsPath) -> str:
+        data = self.read_bytes(path)
+        return data.decode("utf-8") if data else ""
+
+    def read_bytes(self, path: HdfsPath) -> bytes:
         request = Request(self._url(path, "OPEN"), method="GET")
         opener = build_opener(_NoRedirect)
         try:
             with opener.open(request, timeout=20) as response:
-                return response.read().decode("utf-8")
+                return response.read()
         except HTTPError as exc:
             if exc.code == 404:
-                return ""
+                return b""
             if exc.code in (307, 308):
                 location = self._rewrite_redirect(exc.headers["Location"])
                 with urlopen(location, timeout=30) as response:
-                    return response.read().decode("utf-8")
+                    return response.read()
             raise
 
     def write_text(self, path: HdfsPath, text: str) -> None:
+        self.write_bytes(path, text.encode("utf-8"))
+
+    def write_bytes(self, path: HdfsPath, data: bytes) -> None:
         self.mkdirs(path.parent)
         create_url = self._url(path, "CREATE", overwrite="true")
         request = Request(create_url, method="PUT")
@@ -98,7 +81,6 @@ class WebHdfsLake:
             if exc.code != 307:
                 raise
             location = self._rewrite_redirect(exc.headers["Location"])
-            data = text.encode("utf-8")
             put_request = Request(location, data=data, method="PUT")
             with urlopen(put_request, timeout=30):
                 return
@@ -116,6 +98,16 @@ class WebHdfsLake:
         except HTTPError as exc:
             if exc.code == 404:
                 return False
+            raise
+
+    def delete(self, path: HdfsPath, recursive: bool = False) -> None:
+        try:
+            request = Request(self._url(path, "DELETE", recursive=str(recursive).lower()), method="DELETE")
+            with urlopen(request, timeout=20):
+                return
+        except HTTPError as exc:
+            if exc.code == 404:
+                return
             raise
 
     def list_status(self, path: HdfsPath) -> list[dict[str, Any]]:

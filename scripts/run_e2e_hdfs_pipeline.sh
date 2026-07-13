@@ -10,11 +10,20 @@ hive_compose_file="docker/docker-compose.hive.yml"
 test_id="${TEST_ID:-$(python3 -c 'import time; print(91000000 + int(time.time()) % 1000000)')}"
 batch_no="E2E${biz_dt//-/}${test_id}"
 ops_log="data/ops/e2e_hdfs_pipeline.log"
+export SPARK_STREAMING_CHECKPOINT="${SPARK_STREAMING_CHECKPOINT:-hdfs://hdfs-namenode:8020/warehouse/checkpoints/offline_sink}"
+export SPARK_BAD_RECORDS_PATH="${SPARK_BAD_RECORDS_PATH:-}"
+mysql_container="${MYSQL_CONTAINER:-cdc-warehouse-mysql}"
+kafka_container="${KAFKA_CONTAINER:-cdc-warehouse-kafka}"
+hdfs_container="${HDFS_CONTAINER:-cdc-warehouse-hdfs-namenode}"
+hive_container="${HIVE_CONTAINER:-cdc-warehouse-hive-server}"
+spark_container="${SPARK_STREAMING_CONTAINER:-cdc-warehouse-spark-streaming}"
+admin_container="${ADMIN_CONTAINER:-cdc-warehouse-admin}"
+hive_jdbc_url="${HIVE_JDBC_URL:-jdbc:hive2://localhost:10000}"
 
 mkdir -p data/ops
 
 find_pyspark_python() {
-  for candidate in "${PYSPARK_PYTHON:-}" python3 /Library/Frameworks/Python.framework/Versions/3.7/bin/python3; do
+  for candidate in "${PYSPARK_PYTHON:-}" .venv/bin/python python3.11 python3.10 python3.9 python3.8 python3.7 python3 python; do
     if [[ -z "${candidate}" ]]; then
       continue
     fi
@@ -30,18 +39,10 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${ops_log}"
 }
 
-run_hive_file() {
-  local file="$1"
-  docker exec cdc-warehouse-hive-server beeline \
-    -u jdbc:hive2://localhost:10000 \
-    --hivevar "biz_dt=${biz_dt}" \
-    -f "/workspace/${file}" >> "${ops_log}" 2>&1
-}
-
 run_hive_sql() {
   local sql="$1"
-  docker exec cdc-warehouse-hive-server beeline \
-    -u jdbc:hive2://localhost:10000 \
+  docker exec "${hive_container}" beeline \
+    -u "${hive_jdbc_url}" \
     -e "${sql}" >> "${ops_log}" 2>&1
 }
 
@@ -50,7 +51,7 @@ wait_until() {
   local command="$2"
   local max_wait="${3:-90}"
   local waited=0
-  until eval "${command}" >/dev/null 2>&1; do
+  until run_with_timeout 20 "${command}" >/dev/null 2>&1; do
     if [[ "${waited}" -ge "${max_wait}" ]]; then
       log "FAIL wait timeout: ${name}"
       return 1
@@ -61,26 +62,46 @@ wait_until() {
   log "OK ${name}"
 }
 
+run_with_timeout() {
+  local seconds="$1"
+  local command="$2"
+  bash -c "${command}" &
+  local pid="$!"
+  local elapsed=0
+  while kill -0 "${pid}" >/dev/null 2>&1; do
+    if [[ "${elapsed}" -ge "${seconds}" ]]; then
+      kill "${pid}" >/dev/null 2>&1 || true
+      wait "${pid}" >/dev/null 2>&1 || true
+      return 124
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  wait "${pid}"
+}
+
 log "E2E start biz_dt=${biz_dt} test_id=${test_id} lake_root=${lake_root}"
 
 log "start docker stack"
 docker compose -f "${compose_file}" -f "${hive_compose_file}" up -d \
   mysql zookeeper kafka maxwell hdfs-namenode hdfs-datanode hive-server spark-streaming admin ops-refresh >> "${ops_log}" 2>&1
 
-wait_until "mysql healthy" "docker inspect -f '{{.State.Health.Status}}' cdc-warehouse-mysql | grep -q healthy" 120
-wait_until "kafka healthy" "docker inspect -f '{{.State.Health.Status}}' cdc-warehouse-kafka | grep -q healthy" 120
-wait_until "hdfs ready" "docker exec cdc-warehouse-hdfs-namenode hdfs dfs -ls /warehouse" 120
-docker exec cdc-warehouse-hdfs-namenode hdfs dfsadmin -safemode leave >> "${ops_log}" 2>&1 || true
-wait_until "hdfs safemode off" "docker exec cdc-warehouse-hdfs-namenode hdfs dfsadmin -safemode get | grep -q 'Safe mode is OFF'" 120
-wait_until "hive ready" "docker exec cdc-warehouse-hive-server beeline -u jdbc:hive2://localhost:10000 -e 'show databases;'" 180
+wait_until "mysql healthy" "docker inspect -f '{{.State.Health.Status}}' '${mysql_container}' | grep -q healthy" 120
+wait_until "kafka healthy" "docker inspect -f '{{.State.Health.Status}}' '${kafka_container}' | grep -q healthy" 120
+wait_until "hdfs ready" "docker exec '${hdfs_container}' hdfs dfs -ls /warehouse" 120
+docker exec "${hdfs_container}" hdfs dfsadmin -safemode leave >> "${ops_log}" 2>&1 || true
+wait_until "hdfs safemode off" "docker exec '${hdfs_container}' hdfs dfsadmin -safemode get | grep -q 'Safe mode is OFF'" 120
+wait_until "hive ready" "docker exec '${hive_container}' beeline -u '${hive_jdbc_url}' -e 'show databases;'" 180
 
 log "init hdfs/hive ddl"
 ./scripts/init_hdfs_hive.sh >> "${ops_log}" 2>&1
-docker compose -f "${compose_file}" -f "${hive_compose_file}" restart spark-streaming >> "${ops_log}" 2>&1
-wait_until "spark-streaming running" "docker inspect -f '{{.State.Running}}' cdc-warehouse-spark-streaming | grep -q true" 60
+docker exec "${hdfs_container}" hdfs dfs -rm -r -f "${SPARK_STREAMING_CHECKPOINT}" /warehouse/ods_binlog/_spark_metadata >> "${ops_log}" 2>&1 || true
+docker compose -f "${compose_file}" -f "${hive_compose_file}" up -d --force-recreate spark-streaming >> "${ops_log}" 2>&1
+wait_until "spark-streaming running" "docker inspect -f '{{.State.Running}}' '${spark_container}' | grep -q true" 60
+wait_until "spark-streaming checkpoint initialized" "docker exec '${hdfs_container}' hdfs dfs -test -e '${SPARK_STREAMING_CHECKPOINT}/offsets/0'" 120
 
 log "insert mysql test row"
-docker exec cdc-warehouse-mysql mysql -uroot -proot -e "
+docker exec "${mysql_container}" mysql -uroot -proot -e "
 insert into basiccomment.avatar_commentbatchsource
   (id,batchnumber,batchtype,ctime,utime,ver,source_channel)
 values
@@ -93,50 +114,57 @@ on duplicate key update
   source_channel=values(source_channel);
 " >> "${ops_log}" 2>&1
 
-log "run one kafka to hdfs micro-batch"
-docker exec cdc-warehouse-spark-streaming python3 scripts/spark_streaming_kafka_to_hdfs_once.py \
-  --bootstrap-server kafka:9092 \
-  --lake-root hdfs://hdfs-namenode:8020/warehouse >> "${ops_log}" 2>&1
-
-binlog_path="/warehouse/ods_binlog/db=basiccomment/table=avatar_commentbatchsource/dt=${biz_dt}/part-00000.jsonl"
-wait_until "spark-streaming hdfs binlog ${binlog_path}" \
-  "docker exec cdc-warehouse-hdfs-namenode sh -c \"hdfs dfs -test -s '${binlog_path}' && hdfs dfs -cat '${binlog_path}' | grep -q '${test_id}'\"" \
-  120
+wait_until "ods_binlog hive row id=${test_id}" \
+  "docker exec '${hive_container}' beeline -u '${hive_jdbc_url}' --silent=true --showHeader=false --outputformat=tsv2 -e \"msck repair table ods_binlog.ods_binlog_basiccomment_avatar_commentbatchsource_di; select count(1) from ods_binlog.ods_binlog_basiccomment_avatar_commentbatchsource_di where dt='${biz_dt}' and get_json_object(data_json,'$.id')='${test_id}';\" | awk '\$1+0>0{found=1} END{exit !found}'" \
+  180
 
 log "run pyspark ods merge"
 pyspark_python="$(find_pyspark_python)" || {
   log "FAIL pyspark python not found"
   exit 1
 }
-PYSPARK_PYTHON="${pyspark_python}" PYSPARK_DRIVER_PYTHON="${pyspark_python}" "${pyspark_python}" scripts/spark_sql_ods_merge_daily.py \
-  --lake-root "${lake_root}" \
-  --biz-dt "${biz_dt}" \
-  --engine pyspark >> "${ops_log}" 2>&1
+LAKE_ROOT="${lake_root}" SPARK_DFS_CLIENT_USE_DATANODE_HOSTNAME=true PYSPARK_PYTHON="${pyspark_python}" PYSPARK_DRIVER_PYTHON="${pyspark_python}" \
+  bash deploy/run_job.sh daily-merge "${biz_dt}" >> "${ops_log}" 2>&1
 
 ods_dir="/warehouse/ods/db=basiccomment/table=avatar_commentbatchsource/dt=${biz_dt}"
 wait_until "ods hdfs snapshot ${ods_dir}" \
-  "docker exec cdc-warehouse-hdfs-namenode sh -c \"hdfs dfs -ls '${ods_dir}' && hdfs dfs -cat '${ods_dir}'/part-*.csv | grep -q '${test_id}'\"" \
+  "docker exec '${hdfs_container}' sh -c \"hdfs dfs -ls '${ods_dir}'/part-*.parquet\"" \
   60
 
 log "repair hive partitions"
 run_hive_sql "msck repair table ods_binlog.ods_binlog_basiccomment_avatar_commentbatchsource_di; msck repair table ods.ods_basiccomment_avatar_commentbatchsource_dic;"
 
-log "run hive dim/dwd/dws/dwt/ads"
-run_hive_file "warehouse/sql/dim/jobs/dim_comment_batch_type.sql"
-run_hive_file "warehouse/sql/dwd/jobs/dwd_comment_batch_detail_di.sql"
-run_hive_file "warehouse/sql/dws/jobs/dws_comment_batch_1d.sql"
-run_hive_file "warehouse/sql/dwt/jobs/dwt_comment_batch_topic_td.sql"
-run_hive_file "warehouse/sql/ads/jobs/ads_comment_dashboard_1d.sql"
+wait_until "ods hive row id=${test_id}" \
+  "docker exec '${hive_container}' beeline -u '${hive_jdbc_url}' --silent=true --showHeader=false --outputformat=tsv2 -e \"select count(1) from ods.ods_basiccomment_avatar_commentbatchsource_dic where dt='${biz_dt}' and id=${test_id};\" | awk '\$1+0>0{found=1} END{exit !found}'" \
+  90
+
+log "run spark sql dim/dwd/dws/dwt/ads"
+LAKE_ROOT="${lake_root}" SPARK_DFS_CLIENT_USE_DATANODE_HOSTNAME=true PYSPARK_PYTHON="${pyspark_python}" PYSPARK_DRIVER_PYTHON="${pyspark_python}" \
+  bash deploy/run_job.sh layers "${biz_dt}" >> "${ops_log}" 2>&1
+
+log "repair hive layer partitions"
+run_hive_sql "
+msck repair table dim.dim_comment_batch_type;
+msck repair table dim.dim_user_info;
+msck repair table dwd.dwd_comment_batch_detail_di;
+msck repair table dwd.dwd_trade_order_detail_di;
+msck repair table dws.dws_comment_batch_1d;
+msck repair table dws.dws_trade_user_1d;
+msck repair table dwt.dwt_comment_batch_topic_td;
+msck repair table dwt.dwt_trade_user_td;
+msck repair table ads.ads_comment_dashboard_1d;
+msck repair table ads.ads_trade_dashboard_1d;
+"
 
 log "query ods result"
-docker exec cdc-warehouse-hive-server beeline \
-  -u jdbc:hive2://localhost:10000 \
+docker exec "${hive_container}" beeline \
+  -u "${hive_jdbc_url}" \
   -e "select id,batchnumber,batchtype,source_channel,dt from ods.ods_basiccomment_avatar_commentbatchsource_dic where dt='${biz_dt}' and id=${test_id};" \
   | tee data/ops/e2e_ods_result.txt
 
 log "query ads result"
-docker exec cdc-warehouse-hive-server beeline \
-  -u jdbc:hive2://localhost:10000 \
+docker exec "${hive_container}" beeline \
+  -u "${hive_jdbc_url}" \
   -e "select * from ads.ads_comment_dashboard_1d where dt='${biz_dt}' order by metric_name;" \
   | tee data/ops/e2e_ads_result.txt
 

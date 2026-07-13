@@ -5,6 +5,5 @@ create external table if not exists ads.ads_trade_dashboard_1d (
   metric_value double
 )
 partitioned by (dt string)
-row format delimited fields terminated by ','
-stored as textfile
+stored as parquet
 location '/warehouse/ads/ads_trade_dashboard_1d';

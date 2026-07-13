@@ -10,7 +10,5 @@ create external table ods.ods_basiccomment_avatar_commentbatchsource_dic (
   source_channel string
 )
 partitioned by (dt string)
-row format delimited fields terminated by ','
-stored as textfile
-location '/warehouse/ods/db=basiccomment/table=avatar_commentbatchsource'
-tblproperties ('skip.header.line.count'='1');
+stored as parquet
+location '/warehouse/ods/db=basiccomment/table=avatar_commentbatchsource';

@@ -2,7 +2,6 @@
 Publish the CDC warehouse daily process to DolphinScheduler.
 
 Modes:
-  --local       Run the full pipeline locally (no DS needed)
   --audit       Publish to DS audit files (offline review)
   --live        Publish to a live DS instance (requires DS config)
   --dry-run     Print the process definition JSON without publishing
@@ -10,8 +9,6 @@ Modes:
 from __future__ import annotations
 
 import json
-import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -19,8 +16,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from warehouse.scheduler.dolphinscheduler.ds_api_client import DolphinSchedulerClient
 
-# ── Load config ─────────────────────────────────────────────────────
 
 def _load_config() -> dict[str, Any]:
     try:
@@ -29,8 +26,6 @@ def _load_config() -> dict[str, Any]:
     except Exception:
         return {}
 
-
-# ── DS process definition builder ───────────────────────────────────
 
 def build_process_definition(process: dict) -> dict[str, Any]:
     """Convert high-level process JSON to DS OpenAPI process definition format.
@@ -74,7 +69,7 @@ def build_process_definition(process: dict) -> dict[str, Any]:
     for dep in dependencies:
         upstream_name, downstream_name = dep[0], dep[1]
         task_relations.append({
-            "name": f"{upstream_name} → {downstream_name}",
+            "name": f"{upstream_name} -> {downstream_name}",
             "preTaskCode": task_codes[upstream_name],
             "preTaskVersion": 1,
             "postTaskCode": task_codes[downstream_name],
@@ -101,80 +96,19 @@ def build_process_definition(process: dict) -> dict[str, Any]:
     }
 
 
-# ── Local pipeline runner ───────────────────────────────────────────
-
-def run_local_pipeline(biz_dt: str = None) -> None:
-    """Execute the full warehouse pipeline locally, step by step."""
-    if biz_dt is None:
-        biz_dt = os.environ.get("BIZ_DT", "2026-07-06")
-
-    print(f"\n{'='*60}")
-    print(f"CDC Warehouse Pipeline — Local Execution (biz_dt={biz_dt})")
-    print(f"{'='*60}\n")
-
-    steps = [
-        ("ods_merge", [sys.executable,
-                       str(ROOT / "warehouse/jobs/merge_ods_snapshot.py"),
-                       str(ROOT / "metadata/tables/basiccomment.avatar_commentbatchsource.json"),
-                       str(ROOT / "data/lake"), biz_dt]),
-        ("ods_merge_trade", [sys.executable,
-                             str(ROOT / "warehouse/jobs/merge_ods_snapshot.py"),
-                             str(ROOT / "metadata/tables/trade.order_info.json"),
-                             str(ROOT / "data/lake"), biz_dt]),
-        ("full_pipeline", [sys.executable,
-                           str(ROOT / "warehouse/jobs/run_full_pipeline.py")]),
-    ]
-    print("  [delay_gate] ⊘ skipped (local mode)\n")
-
-    for step_name, cmd in steps:
-        print(f"  [{step_name}] ", end="", flush=True)
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True,
-                                    cwd=str(ROOT), timeout=60)
-            if result.returncode == 0:
-                print("✓ OK")
-            else:
-                print(f"✗ FAILED (code={result.returncode})")
-                print(f"    stderr: {result.stderr.strip()[:200]}")
-                return
-        except subprocess.TimeoutExpired:
-            print("✗ TIMEOUT")
-            return
-
-    print(f"\n{'='*60}")
-    print("Pipeline complete. All layers populated.")
-    print(f"{'='*60}\n")
-
-
-# ── Main ────────────────────────────────────────────────────────────
-
 def main() -> None:
     args = set(sys.argv[1:])
     process_path = ROOT / "warehouse/scheduler/dolphinscheduler/warehouse_daily_process.json"
     process = json.loads(process_path.read_text(encoding="utf-8"))
 
-    # ── Local mode ──
-    if "--local" in args or "-l" in args:
-        biz_dt = os.environ.get("BIZ_DT", "2026-07-06")
-        run_local_pipeline(biz_dt)
-        return
-
-    # ── Dry run ──
     if "--dry-run" in args or "-d" in args:
         ds_def = build_process_definition(process)
         print(json.dumps(ds_def, ensure_ascii=False, indent=2))
         return
 
-    # ── DS publish ──
     cfg = _load_config()
     ds_cfg = cfg.get("dolphinscheduler", {})
     audit_mode = "--audit" in args or ds_cfg.get("audit_mode", True)
-    live_mode = "--live" in args
-
-    client_module = "warehouse.scheduler.dolphinscheduler.ds_api_client"
-    from importlib import import_module
-    mod = import_module(client_module)
-    DolphinSchedulerClient = mod.DolphinSchedulerClient
 
     client = DolphinSchedulerClient(
         endpoint=ds_cfg.get("endpoint", "http://localhost:12345/dolphinscheduler"),
@@ -231,11 +165,11 @@ def _fmt_result(r: dict) -> str:
     """Format a DS API result for display."""
     if isinstance(r, dict):
         if r.get("success") is False:
-            return f"FAILED — {r.get('msg', str(r))[:80]}"
+            return f"FAILED - {r.get('msg', str(r))[:80]}"
         if r.get("status") == "OK":
             return f"OK (audit: {r.get('audit_file', '')})"
         code = r.get("code", -1)
-        return f"OK (code={code})" if code == 0 or code == 200 else f"code={code} — {r.get('msg', str(r))[:80]}"
+        return f"OK (code={code})" if code == 0 or code == 200 else f"code={code} - {r.get('msg', str(r))[:80]}"
     return str(r)
 
 

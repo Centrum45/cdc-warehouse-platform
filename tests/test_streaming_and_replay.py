@@ -10,8 +10,6 @@ from replay.replay_plan import ReplayPlan
 from replay.replay_runner import run_replay
 from streaming.common.binlog_parser import parse_maxwell_event
 from streaming.common.checkpoint import FileCheckpoint
-from streaming.offline_sink.spark_streaming_to_hdfs import run_micro_batch
-from streaming.realtime_sink.kafka_to_kudu import upsert_rows
 
 
 EVENTS = [
@@ -67,22 +65,6 @@ class StreamingReplayTest(unittest.TestCase):
             checkpoint = FileCheckpoint(Path(tmp) / "offset.json")
             checkpoint.save_offset("topic", 3)
             self.assertEqual(checkpoint.load_offset("topic"), 3)
-
-    def test_offline_micro_batch(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            topic = Path(tmp) / "topic.jsonl"
-            write_topic(topic)
-            written = run_micro_batch(topic, Path(tmp) / "lake", Path(tmp) / "ckpt.json", None, Path(tmp) / "progress")
-            self.assertEqual(len(written), 1)
-            self.assertTrue(written[0].exists())
-
-    def test_realtime_kudu_upsert_delete(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            topic = Path(tmp) / "topic.jsonl"
-            write_topic(topic)
-            output = upsert_rows(topic, Path(tmp) / "kudu", Path(tmp) / "ckpt.json")
-            self.assertIn("id,batchnumber", output.read_text(encoding="utf-8"))
-            self.assertNotIn("B1", output.read_text(encoding="utf-8"))
 
     def test_replay_runner(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

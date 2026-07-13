@@ -5,39 +5,11 @@
   "schedule": "0 30 2 * * ?",
   "tasks": [
     {"name": "delay_gate", "type": "SHELL", "command": "python3 warehouse/jobs/check_delay_gate.py ${biz_dt}"},
-    {"name": "ods_merge", "type": "SPARK_SQL", "command": "./scripts/run_daily_ods_merge.sh ${biz_dt}"},
-
-    {"name": "dim_comment_batch_type", "type": "HIVE_SQL", "command": "hive -f warehouse/sql/dim/jobs/dim_comment_batch_type.sql"},
-    {"name": "dim_user_info", "type": "HIVE_SQL", "command": "hive -f warehouse/sql/dim/jobs/dim_user_info.sql"},
-
-    {"name": "dwd_comment_batch_detail_di", "type": "HIVE_SQL", "command": "hive -f warehouse/sql/dwd/jobs/dwd_comment_batch_detail_di.sql"},
-    {"name": "dwd_trade_order_detail_di", "type": "HIVE_SQL", "command": "hive -f warehouse/sql/dwd/jobs/dwd_trade_order_detail_di.sql"},
-
-    {"name": "dws_comment_batch_1d", "type": "HIVE_SQL", "command": "hive -f warehouse/sql/dws/jobs/dws_comment_batch_1d.sql"},
-    {"name": "dws_trade_user_1d", "type": "HIVE_SQL", "command": "hive -f warehouse/sql/dws/jobs/dws_trade_user_1d.sql"},
-
-    {"name": "dwt_comment_batch_topic_td", "type": "HIVE_SQL", "command": "hive -f warehouse/sql/dwt/jobs/dwt_comment_batch_topic_td.sql"},
-    {"name": "dwt_trade_user_td", "type": "HIVE_SQL", "command": "hive -f warehouse/sql/dwt/jobs/dwt_trade_user_td.sql"},
-
-    {"name": "ads_comment_dashboard_1d", "type": "HIVE_SQL", "command": "hive -f warehouse/sql/ads/jobs/ads_comment_dashboard_1d.sql"},
-    {"name": "ads_trade_dashboard_1d", "type": "HIVE_SQL", "command": "hive -f warehouse/sql/ads/jobs/ads_trade_dashboard_1d.sql"}
+    {"name": "ods_merge", "type": "SPARK_SQL", "command": "bash deploy/run_job.sh daily-merge ${biz_dt}"},
+    {"name": "warehouse_layers", "type": "SPARK_SQL", "command": "bash deploy/run_job.sh layers ${biz_dt}"}
   ],
   "dependencies": [
     ["delay_gate", "ods_merge"],
-
-    ["ods_merge", "dim_comment_batch_type"],
-    ["ods_merge", "dim_user_info"],
-
-    ["dim_comment_batch_type", "dwd_comment_batch_detail_di"],
-    ["ods_merge", "dwd_trade_order_detail_di"],
-
-    ["dwd_comment_batch_detail_di", "dws_comment_batch_1d"],
-    ["dwd_trade_order_detail_di", "dws_trade_user_1d"],
-
-    ["dws_comment_batch_1d", "dwt_comment_batch_topic_td"],
-    ["dws_trade_user_1d", "dwt_trade_user_td"],
-
-    ["dwt_comment_batch_topic_td", "ads_comment_dashboard_1d"],
-    ["dwt_trade_user_td", "ads_trade_dashboard_1d"]
+    ["ods_merge", "warehouse_layers"]
   ]
 }

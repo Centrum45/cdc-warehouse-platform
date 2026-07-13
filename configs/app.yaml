@@ -1,6 +1,7 @@
 storage:
-  type: local
-  warehouse_root: data/lake
+  type: hdfs
+  warehouse_root: hdfs://localhost:8020/warehouse
+  local_debug_root: data/lake
 
 timezone:
   source: UTC

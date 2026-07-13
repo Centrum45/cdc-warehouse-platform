@@ -6,6 +6,5 @@ create external table if not exists dws.dws_trade_user_1d (
   pay_amount double
 )
 partitioned by (dt string)
-row format delimited fields terminated by ','
-stored as textfile
+stored as parquet
 location '/warehouse/dws/dws_trade_user_1d';

@@ -9,6 +9,10 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from storage.local_lake import LocalLake
+from storage.binlog_parquet import read_local_parquet, row_to_event
+from storage.parquet_table import read_local_parquet as read_table_parquet
+from storage.parquet_table import write_local_parquet as write_table_parquet
+from warehouse.metadata_loader import load_table_metadata
 from warehouse.jobs.delay_gate import can_merge
 
 BINLOG_TYPE_ORDER = {
@@ -17,11 +21,6 @@ BINLOG_TYPE_ORDER = {
     "update": 2,
     "delete": 3
 }
-
-
-def load_table_metadata(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as fp:
-        return json.load(fp)
 
 
 def normalize_event(event: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]:
@@ -84,20 +83,21 @@ def run_merge(
             raise RuntimeError(f"merge blocked: {reason}")
     lake = LocalLake(lake_root)
 
-    binlog_path = lake.binlog_partition(database, table, process_dt) / "part-00000.jsonl"
-    binlog_records = lake.read_jsonl(binlog_path)
-    binlog_rows = [normalize_event(record["content"], metadata) for record in binlog_records]
+    parquet_path = lake.binlog_partition(database, table, process_dt) / "part-00000.parquet"
+    binlog_rows = [normalize_event(row_to_event(record), metadata) for record in read_local_parquet(parquet_path)]
     affected_dt = sorted({row["dt"] for row in binlog_rows})
 
     written: list[Path] = []
     columns = [column["name"] for column in metadata["columns"]] + ["dt"]
     for dt in affected_dt:
-        old_path = lake.ods_partition(database, table, dt) / "part-00000.csv"
-        old_rows = lake.read_csv(old_path)
+        old_parquet_path = lake.ods_partition(database, table, dt) / "part-00000.parquet"
+        old_rows = read_table_parquet(old_parquet_path)
         scoped_binlog_rows = [row for row in binlog_rows if row["dt"] == dt]
         merged = merge_rows(scoped_binlog_rows, old_rows, metadata)
-        output_path = lake.ods_partition(database, table, dt) / "part-00000.csv"
-        lake.write_csv(output_path, merged, columns)
+        output_path = lake.ods_partition(database, table, dt) / "part-00000.parquet"
+        for old_file in output_path.parent.glob("part-*"):
+            old_file.unlink()
+        write_table_parquet(output_path, merged, columns)
         written.append(output_path)
     return written
 
