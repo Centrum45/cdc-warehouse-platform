@@ -93,10 +93,10 @@ Export Kafka topic to local JSONL:
 ./scripts/kafka_to_jsonl.sh cdc.incremental.binlog data/kafka/cdc.incremental.binlog.jsonl 100
 ```
 
-Then run local warehouse pipeline:
+Then run the HDFS/Hive E2E pipeline:
 
 ```bash
-./scripts/run_local_pipeline.sh
+./scripts/run_e2e_hdfs_pipeline.sh
 ```
 
 ## Maxwell Bootstrap

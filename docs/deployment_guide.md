@@ -234,14 +234,14 @@ ODS binlog:
 
 ```bash
 docker exec cdc-warehouse-hdfs-namenode \
-  hdfs dfs -cat /warehouse/ods_binlog/db=basiccomment/table=avatar_commentbatchsource/dt=2026-07-07/part-00000.jsonl
+  hdfs dfs -ls /warehouse/ods_binlog/db=basiccomment/table=avatar_commentbatchsource/dt=2026-07-07
 ```
 
 ODS snapshot:
 
 ```bash
 docker exec cdc-warehouse-hdfs-namenode \
-  hdfs dfs -cat /warehouse/ods/db=basiccomment/table=avatar_commentbatchsource/dt=2026-07-07/part-*.csv
+  hdfs dfs -ls /warehouse/ods/db=basiccomment/table=avatar_commentbatchsource/dt=2026-07-07
 ```
 
 ADS:
@@ -546,9 +546,6 @@ PROGRESS_ROOT=/warehouse/progress
 DELAY_GATE_MAX_SECONDS=1800
 
 SPARK_STREAMING_INTERVAL_SECONDS=5
-SPARK_STREAMING_MAX_MESSAGES=500
-SPARK_STREAMING_TIMEOUT_MS=10000
-
 DS_ENDPOINT=http://dolphinscheduler.prod.example.com:12345/dolphinscheduler
 DS_TOKEN=your_ds_token
 ```
@@ -562,8 +559,6 @@ IMPALA_USER=cdc_user
 IMPALA_PASSWORD=your_password
 IMPALA_AUTH_MECHANISM=PLAIN
 KUDU_MASTERS=kudu-master-1.prod.example.com:7051,kudu-master-2.prod.example.com:7051
-USE_REAL_KUDU=true
-REALTIME_ENGINE=kudu_impala
 ```
 
 Protect env files:
@@ -649,7 +644,7 @@ Realtime Kudu/Impala smoke, when real cluster env is configured:
 
 ```bash
 cd /opt/cdc-warehouse-platform
-python3 scripts/run_realtime_kudu_smoke.py --real
+python3 scripts/run_realtime_kudu_smoke.py
 ```
 
 Run smoke and trigger ODS merge:

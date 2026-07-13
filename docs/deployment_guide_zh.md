@@ -52,7 +52,7 @@ git checkout dev
 - Docker Desktop 或 Docker Engine。
 - Docker Compose v2。
 - Git。
-- Python 3。
+- Python 3.8-3.11。不要直接依赖系统 `python3`，项目提供 `.venv` 初始化脚本。
 - Docker 可用内存至少 8 GB，推荐 12 GB。
 - 磁盘剩余至少 15 GB。
 
@@ -63,6 +63,22 @@ docker version
 docker compose version
 python3 --version
 git --version
+```
+
+初始化 Python 虚拟环境：
+
+```bash
+./scripts/setup_python.sh
+./scripts/check_dependencies.sh --mode local
+./scripts/test.sh
+```
+
+说明：
+
+```text
+setup_python.sh 创建 .venv 并安装 requirements.txt
+test.sh 会优先使用 .venv/bin/python
+check_dependencies.sh 检查 pyarrow、Docker、Maven、PySpark 等依赖
 ```
 
 ### 3.2 本地端口
@@ -131,10 +147,11 @@ test -x docker/hive/dist/hive/bin/hiveserver2 && echo HIVE_OK
 执行：
 
 ```bash
-./scripts/local_smoke.sh
+./scripts/dev_up.sh
+./scripts/dev_check.sh
 ```
 
-这个脚本会完成：
+这两个脚本会完成：
 
 ```text
 启动 Docker Compose
@@ -150,8 +167,7 @@ Hive DIM/DWD/DWS/DWT/ADS 分层任务
 期望最终输出：
 
 ```text
-summary: ok=19 warn=0 fail=0
-local smoke done
+summary ok=4 fail=0
 ```
 
 看到这个结果，本地部署成功。
@@ -161,10 +177,11 @@ local smoke done
 如果不想一条命令跑，可以分步骤执行：
 
 ```bash
+./scripts/setup_python.sh
+./scripts/check_dependencies.sh --mode local
 ./scripts/docker_up.sh
 ./scripts/init_hdfs_hive.sh
-./scripts/run_e2e_hdfs_pipeline.sh
-./scripts/check_local_stack.sh
+./scripts/verify_end_to_end.sh
 ```
 
 停止本地环境：
@@ -183,7 +200,8 @@ rm -rf data/hdfs data/hive data/checkpoints data/progress data/ops
 然后重新跑：
 
 ```bash
-./scripts/local_smoke.sh
+./scripts/dev_up.sh
+./scripts/dev_check.sh
 ```
 
 ### 3.7 本地访问地址
@@ -236,14 +254,14 @@ ODS binlog：
 
 ```bash
 docker exec cdc-warehouse-hdfs-namenode \
-  hdfs dfs -cat /warehouse/ods_binlog/db=basiccomment/table=avatar_commentbatchsource/dt=2026-07-07/part-00000.jsonl
+  hdfs dfs -ls /warehouse/ods_binlog/db=basiccomment/table=avatar_commentbatchsource/dt=2026-07-07
 ```
 
 ODS snapshot：
 
 ```bash
 docker exec cdc-warehouse-hdfs-namenode \
-  hdfs dfs -cat /warehouse/ods/db=basiccomment/table=avatar_commentbatchsource/dt=2026-07-07/part-*.csv
+  hdfs dfs -ls /warehouse/ods/db=basiccomment/table=avatar_commentbatchsource/dt=2026-07-07
 ```
 
 ADS：
@@ -361,6 +379,8 @@ docker exec cdc-warehouse-kafka kafka-console-consumer \
 
 适合直接部署到 Linux 服务器，不需要 Kubernetes。
 
+生产部署推荐主路径是 `deploy/server/*`：它会安装 systemd service/timer，并统一管理 SpringBoot、SparkStreaming、每日 merge 和运维快照。`deploy/prod/*` 只作为手动启动 Admin 或手动提交任务的辅助入口，不作为主部署方式。
+
 ### 4.1 生产环境前提
 
 本项目不负责安装生产 MySQL、Kafka、HDFS、Hive、DolphinScheduler。生产环境里这些服务应该已经存在。
@@ -396,6 +416,13 @@ hdfs
 beeline
 mysql
 curl
+```
+
+Python 依赖使用项目内 `.venv` 管理。服务器安装完成后，在 `/opt/cdc-warehouse-platform` 下执行：
+
+```bash
+sudo -u cdc /opt/cdc-warehouse-platform/scripts/setup_python.sh
+sudo -u cdc /opt/cdc-warehouse-platform/scripts/check_dependencies.sh --mode prod
 ```
 
 Ubuntu 示例：
@@ -503,6 +530,7 @@ sudo vim /etc/cdc-warehouse/admin.env
 SPRING_PROFILES_ACTIVE=prod
 WAREHOUSE_PROJECT_ROOT=/opt/cdc-warehouse-platform
 SERVER_PORT=8080
+WAREHOUSE_ACTIONS_PUBLIC_ENABLED=false
 
 DB_HOST=mysql.prod.example.com
 DB_PORT=3306
@@ -517,9 +545,12 @@ JWT_SECRET=replace_with_long_random_secret
 DS_ENDPOINT=http://dolphinscheduler.prod.example.com:12345/dolphinscheduler
 DS_TOKEN=your_ds_token
 HIVE_JDBC_URL=jdbc:hive2://hive.prod.example.com:10000
+LAKE_ROOT=hdfs://nameservice1/warehouse
 WAREHOUSE_HDFS_ROOT=hdfs://nameservice1/warehouse
 WEBHDFS_ENDPOINT=http://namenode.prod.example.com:9870
 WEBHDFS_USER=hdfs
+KAFKA_BOOTSTRAP_SERVERS=kafka01.prod.example.com:9092,kafka02.prod.example.com:9092
+KAFKA_TOPIC=cdc.incremental.binlog
 ```
 
 编辑任务配置：
@@ -544,10 +575,16 @@ WEBHDFS_USER=hdfs
 
 PROGRESS_ROOT=/warehouse/progress
 DELAY_GATE_MAX_SECONDS=1800
+MERGE_AUDIT_ROOT=data/ops/merge_audit
+MERGE_BACKUP_ROOT=hdfs://nameservice1/warehouse/ods_backup
 
+SPARK_MASTER=local[2]
+SPARK_KAFKA_PACKAGE=org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1
+SPARK_STREAMING_CHECKPOINT=hdfs://nameservice1/warehouse/checkpoints/offline_sink
+SPARK_STARTING_OFFSETS=latest
+SPARK_MAX_OFFSETS_PER_TRIGGER=1000
+SPARK_BAD_RECORDS_PATH=hdfs://nameservice1/warehouse/dead_letter/offline_sink
 SPARK_STREAMING_INTERVAL_SECONDS=5
-SPARK_STREAMING_MAX_MESSAGES=500
-SPARK_STREAMING_TIMEOUT_MS=10000
 
 DS_ENDPOINT=http://dolphinscheduler.prod.example.com:12345/dolphinscheduler
 DS_TOKEN=your_ds_token
@@ -562,8 +599,6 @@ IMPALA_USER=cdc_user
 IMPALA_PASSWORD=your_password
 IMPALA_AUTH_MECHANISM=PLAIN
 KUDU_MASTERS=kudu-master-1.prod.example.com:7051,kudu-master-2.prod.example.com:7051
-USE_REAL_KUDU=true
-REALTIME_ENGINE=kudu_impala
 ```
 
 保护 env 文件权限：
@@ -599,6 +634,9 @@ mysql -h MYSQL_HOST -P 3306 -u cdc_admin -p cdc_warehouse_admin \
 启动：
 
 ```bash
+cd /opt/cdc-warehouse-platform
+sudo -u cdc ./scripts/setup_python.sh
+sudo -u cdc ./scripts/check_dependencies.sh --mode prod
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh preflight
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh start
 ```
@@ -649,7 +687,7 @@ Hive ADS count
 
 ```bash
 cd /opt/cdc-warehouse-platform
-python3 scripts/run_realtime_kudu_smoke.py --real
+python3 scripts/run_realtime_kudu_smoke.py
 ```
 
 触发 ODS merge 并验收：

@@ -1,7 +1,7 @@
 # Warehouse Layers
 
 ```text
-ods_binlog: raw Maxwell binlog JSON
+ods_binlog: Parquet CDC event table with raw_json/data_json/old_json
 ods:        MySQL-like current snapshot
 dim:        shared dimensions
 dwd:        detail fact layer
@@ -13,8 +13,8 @@ ads:        application/report layer
 Local HDFS simulation:
 
 ```text
-data/lake/ods_binlog/db=.../table=.../dt=.../part-00000.jsonl
-data/lake/ods/db=.../table=.../dt=.../part-00000.csv
+data/lake/ods_binlog/db=.../table=.../dt=.../part-00000.parquet
+data/lake/ods/db=.../table=.../dt=.../part-00000.parquet
 ```
 
 Docker HDFS:

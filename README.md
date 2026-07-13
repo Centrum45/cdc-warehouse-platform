@@ -12,35 +12,69 @@ This repo supports two deployment modes:
 - Local debug: Docker Compose starts MySQL, Maxwell, Kafka, HDFS, Hive, DolphinScheduler, SparkStreaming, and SpringBoot Admin.
 - Server production: deploy SpringBoot and long-running jobs directly to Linux servers with systemd, while connecting to real MySQL/Kafka/HDFS/Hive/DolphinScheduler.
 
-Local-compatible interfaces:
+Runtime interfaces:
 
-- HDFS: local file lake `data/lake` or Docker HDFS `hdfs://localhost:8020/warehouse`
-- Kafka: JSONL event files or Docker Kafka
-- Hive/Spark SQL: generated SQL, local merge job, and Docker Hive/PySpark E2E
-- Kudu/Impala: DDL/query placeholders
+- HDFS: Docker or production HDFS, default local endpoint `hdfs://localhost:8020/warehouse`
+- Kafka: Docker or production Kafka
+- Hive/Spark SQL: generated SQL, Docker Hive/PySpark E2E, server Spark submit scripts
+- Kudu/Impala: Docker single-node realtime cluster, Impala views, Kudu upsert smoke
 - Platform: SpringBoot + Freemarker admin console
 - Scheduler: DolphinScheduler workflow definitions
+- Debug fallbacks: local JSONL input plus Parquet lake data under `data/lake`; realtime local Kudu fallback still uses CSV
 
 ## Local Quick Start
 
+Python helper scripts expect Python 3.8-3.11. Use `scripts/setup_python.sh` to create `.venv` instead of relying on the system `python3`.
+
 ```bash
 cd cdc-warehouse-platform
-./scripts/run_local_pipeline.sh
+cp .env.example .env
+./scripts/setup_python.sh
+./scripts/check_dependencies.sh --mode local
+./scripts/dev_up.sh
+./scripts/dev_check.sh
 ```
 
 Outputs:
 
 ```text
-data/lake/ods_binlog/db=basiccomment/table=avatar_commentbatchsource/dt=2026-07-06/part-00000.jsonl
-data/lake/ods/db=basiccomment/table=avatar_commentbatchsource/dt=2026-07-06/part-00000.csv
+hdfs://localhost:8020/warehouse/ods_binlog/db=basiccomment/table=avatar_commentbatchsource/dt=<biz_dt>/
+hdfs://localhost:8020/warehouse/ods/db=basiccomment/table=avatar_commentbatchsource/dt=<biz_dt>/
 warehouse/sql/ods/merge/merge_ods_basiccomment_avatar_commentbatchsource_dic.sql
 ```
 
 Run tests:
 
 ```bash
-python3 -m unittest discover -s tests
+./scripts/test.sh
 ```
+
+Production preflight:
+
+```bash
+cp deploy/prod/jobs.env.example deploy/prod/jobs.env
+cp deploy/prod/admin.env.example deploy/prod/admin.env
+./scripts/prod_preflight.sh deploy/prod/jobs.env
+```
+
+One-command end-to-end verification after deployment:
+
+```bash
+# local Docker full chain
+./scripts/verify_end_to_end.sh
+
+# server deployment, using deploy/server/control.sh
+./scripts/verify_end_to_end.sh --mode server --biz-dt 2026-07-07
+```
+
+The local verification checks:
+
+```text
+MySQL insert -> Maxwell -> Kafka -> SparkStreaming -> HDFS ods_binlog
+-> PySpark ODS merge -> Hive ODS -> DIM/DWD/DWS/DWT/ADS -> SpringBoot API
+```
+
+The same verification can be triggered from the Admin dashboard with the `本地 E2E 验收` or `服务器 E2E 验收` buttons. Logs are shown on the Logs page under `E2E 验收` and `E2E 诊断`.
 
 CI checks on GitHub Actions:
 
@@ -53,40 +87,45 @@ Docker Compose config checks
 Deployment guide Markdown fence checks
 ```
 
-Python SparkStreaming-style jobs:
+PySpark jobs:
 
 ```bash
-python3 streaming/offline_sink/spark_streaming_to_hdfs.py
-python3 streaming/realtime_sink/kafka_to_kudu.py
-```
+# local/production use the same job entrypoints; only env values differ
+bash deploy/run_job.sh spark-streaming
+bash deploy/run_job.sh daily-merge 2026-07-06
+bash deploy/run_job.sh layers 2026-07-06
 
-True PySpark dual-mode jobs:
-
-```bash
-python3 scripts/run_spark_jobs.py all
-
-# if PySpark is installed, run local Spark jobs
-spark-submit --master local[2] streaming/offline_sink/pyspark_kafka_to_hdfs.py local data/kafka/cdc.incremental.binlog.jsonl data/lake
-spark-submit --master local[2] warehouse/jobs/pyspark_ods_merge.py metadata/tables/basiccomment.avatar_commentbatchsource.json data/lake 2026-07-06
-spark-submit --master local[2] streaming/realtime_sink/pyspark_kafka_to_kudu.py data/kafka/cdc.incremental.binlog.jsonl data/kudu_pyspark
-
-# production Kafka stream shape
-spark-submit --master yarn streaming/offline_sink/pyspark_kafka_to_hdfs.py kafka kafka:9092 cdc.incremental.binlog hdfs:///warehouse /checkpoint/cdc/offline
+# production env file
+bash deploy/run_job.sh --env-file deploy/prod/jobs.env daily-merge 2026-07-06
 ```
 
 Realtime Kudu/Impala:
 
 ```bash
-# local CSV simulation
+# print realtime DDL only
 python3 scripts/run_realtime_kudu_smoke.py --dry-run
-python3 streaming/realtime_sink/kafka_to_kudu.py
 
-# real Impala/Kudu, after setting IMPALA_* and KUDU_MASTERS
+# local real Kudu/Impala
+bash scripts/run_local_kudu_impala_smoke.sh
+
+# consume real Docker Kafka once, then upsert Kudu through Impala
+python3 scripts/spark_streaming_kafka_to_kudu_once.py --bootstrap-objects
+
+# continuously consume Docker Kafka in SparkStreaming-style micro-batches
+python3 scripts/spark_streaming_kafka_to_kudu_loop.py --bootstrap-objects
+
+# real production Impala/Kudu, after setting IMPALA_* and KUDU_MASTERS
 python3 -m realtime.impala.bootstrap
-python3 scripts/run_realtime_kudu_smoke.py --real
+python3 scripts/run_realtime_kudu_smoke.py
 ```
 
 See `docs/realtime_kudu_impala.md`.
+
+Code walkthrough for interviews:
+
+```text
+docs/code_walkthrough_zh.md
+```
 
 Onboard MySQL table to Hive:
 
@@ -111,11 +150,23 @@ Control-plane skeleton:
 ```text
 platform/springboot-admin
   /                 dashboard
+  /realtime         Kudu/Impala status, realtime tables, realtime views
   /logs             runtime logs and Kafka/container status
   /tasks            Spark task config
+  /table-ops        table backfill, lineage check, consistency check, onboarding verification
   /onboarding       MySQL-to-Hive onboarding
   /replay           Maxwell bootstrap/replay
   /monitors         delay/field/special/table/plaintext monitors
+```
+
+Table-level operations are also available from CLI:
+
+```bash
+scripts/table_ops.sh --dry-run backfill basiccomment avatar_commentbatchsource 2026-07-06 2026-07-07
+scripts/table_ops.sh check-lineage basiccomment avatar_commentbatchsource 2026-07-07 ods_basiccomment_avatar_commentbatchsource_dic
+scripts/table_ops.sh consistency basiccomment avatar_commentbatchsource 2026-07-07 ods_basiccomment_avatar_commentbatchsource_dic ctime
+scripts/table_ops.sh backfill basiccomment avatar_commentbatchsource 2026-07-06 2026-07-07
+scripts/table_ops.sh onboarding-verify basiccomment avatar_commentbatchsource 2026-07-07 ods_basiccomment_avatar_commentbatchsource_dic
 ```
 
 SpringBoot platform with MySQL:
@@ -153,6 +204,9 @@ Full Docker HDFS/Hive E2E:
 
 ```bash
 ./scripts/download_hadoop_hive.sh
+./scripts/dev_up.sh
+./scripts/dev_check.sh
+./scripts/verify_end_to_end.sh
 ./scripts/run_e2e_hdfs_pipeline.sh
 ```
 
@@ -171,7 +225,6 @@ docs/deployment_guide_zh.md
 docs/docker_runbook.md
 docs/deployment_profiles.md
 docs/realtime_kudu_impala.md
-docs/realtime_engine_selection_zh.md
 deploy/server/README.md
 ```
 
@@ -196,12 +249,6 @@ sudo /opt/cdc-warehouse-platform/deploy/server/control.sh logs cdc-spark-streami
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh smoke --biz-dt 2026-07-07
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh merge
 systemctl list-timers | grep cdc-daily-merge
-```
-
-Trade/user demo pipeline:
-
-```bash
-./scripts/run_trade_user_pipeline.sh
 ```
 
 ## Core Merge Rule

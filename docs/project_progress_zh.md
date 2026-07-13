@@ -65,6 +65,7 @@ main 分支 GitHub Actions: success
 - Hadoop/Hive 本地下载脚本。
 - 本地健康检查脚本。
 - 本地 E2E 脚本。
+- 本地/服务器一键端到端验收脚本。
 - 本地 HDFS/Hive 全链路验证。
 
 已验证链路：
@@ -155,6 +156,15 @@ comment_batch_priority_total
 - Logs 页面。
 - Onboarding 页面。
 - Tasks 页面。
+- 任务执行历史。
+- 任务失败明细和重跑入口。
+- ODS merge 状态表。
+- 页面一键触发本地/服务器 E2E 验收。
+- 表级补数入口。
+- 表级链路检查。
+- 表级 MySQL/ODS 一致性检查。
+- 新表接入后自动验收。
+- 失败任务关联日志上下文。
 - Replay 页面。
 - Monitors 页面。
 - Rules 页面。
@@ -162,6 +172,7 @@ comment_batch_priority_total
 - Docker 容器状态展示。
 - Kafka 信息展示。
 - Maxwell/Kafka/Spark/Admin 日志展示。
+- E2E 验收日志和诊断展示。
 - 5 秒刷新日志。
 - 日志页避免自动跳顶部。
 
@@ -179,6 +190,7 @@ comment_batch_priority_total
 - 页面未登录跳转 `/login`。
 - 禁止生产使用默认 `admin123`。
 - 强制生产 `JWT_SECRET` 长度不少于 32。
+- 高风险平台动作操作审计，记录 merge、监控、DS 发布、实时 Kafka->Kudu 等操作的请求、执行结果、耗时和客户端来源。
 
 ### 3.8 监控与质量
 
@@ -227,7 +239,7 @@ comment_batch_priority_total
 ```bash
 python3 scripts/run_realtime_kudu_smoke.py --dry-run
 python3 -m realtime.impala.bootstrap
-python3 scripts/run_realtime_kudu_smoke.py --real
+python3 scripts/run_realtime_kudu_smoke.py
 ```
 
 ### 3.11 服务器部署
@@ -334,15 +346,15 @@ CSV 模拟已验证
 - 菜单级权限。
 - 操作级权限。
 - 审批流。
-- 操作审计日志。
 - SSO/LDAP/OAuth 集成。
 
-当前只有：
+当前已有：
 
 ```text
 admin 单账号
 JWT 登录
 prod 强制鉴权
+操作审计日志
 ```
 
 ### 4.4 生产安全
@@ -381,7 +393,6 @@ prod 强制鉴权
 
 未完成：
 
-- ORC/Parquet 生产格式。
 - 压缩策略。
 - Hive 表分桶。
 - 大表 merge 性能压测。
@@ -389,11 +400,11 @@ prod 强制鉴权
 - 小文件治理。
 - Iceberg/Hudi/Delta 等湖仓表格式支持。
 
-当前更偏：
+当前已完成：
 
 ```text
-可跑通、可演示、可验证
-不是大规模性能优化版本
+ods_binlog/ods/dim/dwd/dws/dwt/ads 已统一 Parquet
+ods_binlog 保留 raw_json/data_json/old_json，兼顾字段演进和追溯
 ```
 
 ### 4.8 Schema 演进
@@ -434,8 +445,7 @@ alter SQL 生成
 - 配置版本管理。
 - 配置 diff。
 - 配置回滚。
-- 任务执行历史。
-- 任务失败明细。
+- 更丰富的任务失败诊断，例如失败类型归因、关联日志跳转、补数参数推荐。
 - 数据血缘图 UI。
 - 数据质量看板。
 - 实时链路看板。
@@ -493,7 +503,6 @@ basiccomment.avatar_commentbatchsource
 
 - HTTPS。
 - 访问控制。
-- 操作审计。
 - 权限分级。
 - 密钥保护。
 
@@ -503,10 +512,10 @@ basiccomment.avatar_commentbatchsource
 
 1. 找一台干净 Linux 服务器，按 `docs/deployment_guide_zh.md` 完整部署一次。
 2. 接一套真实 Kafka/HDFS/Hive 环境，跑 `control.sh preflight/health/smoke`。
-3. 接真实 Kudu/Impala，跑 `scripts/run_realtime_kudu_smoke.py --real`。
+3. 接真实 Kudu/Impala，跑 `scripts/run_realtime_kudu_smoke.py`。
 4. 补 Nginx/HTTPS/内网访问控制。
-5. 补操作审计和多用户 RBAC。
-6. 把 ODS/ADS 从 CSV 演示格式升级为 ORC/Parquet。
+5. 补多用户 RBAC 和审批流。
+6. 对 Parquet 小文件、压缩参数和分区粒度做压测优化。
 7. 对 3 到 5 张真实业务表做批量接入和压测。
 8. 补 DolphinScheduler 真实 DAG 联调和失败报警。
 
