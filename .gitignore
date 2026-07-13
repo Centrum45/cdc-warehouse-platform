@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .venv/
+.venv-kudu/
 .DS_Store
 data/kafka/
 data/lake/
@@ -19,6 +20,7 @@ data/hive/
 data/ops/
 .idea/
 target/
+platform/springboot-admin/.m2/
 .env
 docker/.env
 docker/.env.example
