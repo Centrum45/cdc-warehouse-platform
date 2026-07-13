@@ -24,7 +24,7 @@ def run_suite(biz_dt: str = "2026-07-06") -> None:
     allowed, reason = can_merge("data/progress", "basiccomment", "avatar_commentbatchsource", 999999999)
     store.append("delay", "basiccomment", "avatar_commentbatchsource", "OK" if allowed else "FAIL", reason)
     if not allowed:
-        notifier.send("dingtalk", "dba", "CDC delay alert", reason)
+        notifier.send_default("CDC delay alert", reason)
 
     # ---- field drift ----
     missing = diff_columns(
@@ -35,7 +35,7 @@ def run_suite(biz_dt: str = "2026-07-06") -> None:
     message = "metadata aligned" if not missing else f"missing columns: {[column['name'] for column in missing]}"
     store.append("field", "basiccomment", "avatar_commentbatchsource", status, message, len(missing))
     if missing:
-        notifier.send("email", "dba@example.com", "CDC field drift", message)
+        notifier.send_default("CDC field drift", message)
 
     # ---- row count (ODS -> DWD) ----
     rc_rules = rules.get("row_count", {})
@@ -53,7 +53,7 @@ def run_suite(biz_dt: str = "2026-07-06") -> None:
             rc_result["message"],
         )
         if not rc_result["passed"]:
-            notifier.send("email", "dba@example.com", "CDC row count drift", rc_result["message"])
+            notifier.send_default("CDC row count drift", rc_result["message"])
 
     # ---- null rate ----
     nr_rules = rules.get("null_rate", {})
@@ -68,7 +68,7 @@ def run_suite(biz_dt: str = "2026-07-06") -> None:
         nr_result["message"],
     )
     if not nr_result["passed"]:
-        notifier.send("email", "dba@example.com", "CDC null rate alert", nr_result["message"])
+        notifier.send_default("CDC null rate alert", nr_result["message"])
 
     # ---- partition completeness ----
     pq_rules = rules.get("partition", {})
@@ -80,7 +80,7 @@ def run_suite(biz_dt: str = "2026-07-06") -> None:
             pq_result["message"],
         )
         if not pq_result["passed"]:
-            notifier.send("email", "dba@example.com", "CDC partition missing", pq_result["message"])
+            notifier.send_default("CDC partition missing", pq_result["message"])
 
     print(store.path)
 

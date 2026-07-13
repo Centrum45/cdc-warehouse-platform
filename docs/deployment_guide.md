@@ -119,6 +119,28 @@ COOKIE_SECURE=false
 COOKIE_SAME_SITE=Lax
 ```
 
+Alerts write to the outbox by default. For local channel testing:
+
+```text
+ALERT_CHANNELS=file,stdout
+ALERT_OUTBOX=data/alerts/outbox.jsonl
+```
+
+For production email/webhook alerts:
+
+```text
+ALERT_CHANNELS=file,email,dingtalk
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=cdc-alert@example.com
+SMTP_PASS=<change-me>
+SMTP_FROM=cdc-alert@example.com
+SMTP_TO=dba@example.com
+DINGTALK_WEBHOOK_URL=https://oapi.dingtalk.com/robot/send?access_token=...
+```
+
+Open `/monitors` and click `Send Test Alert` after deployment.
+
 ### 3.4 Download Hadoop And Hive
 
 The local HDFS/Hive containers mount Hadoop and Hive binaries from the repo workspace. If not already present, run:

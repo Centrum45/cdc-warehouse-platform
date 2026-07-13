@@ -36,6 +36,9 @@ public class PlatformActionService {
         if ("monitor-suite".equals(action)) {
             return commandExecutorService.run(Arrays.asList("python3", "monitors/run_monitor_suite.py"), 120);
         }
+        if ("test-alert".equals(action)) {
+            return commandExecutorService.run(Arrays.asList("python3", "scripts/send_test_alert.py"), 60);
+        }
         if ("ds-publish".equals(action)) {
             String mode = request == null || !notBlank(request.getMode()) ? "--audit" : request.getMode().trim();
             if (!"--audit".equals(mode) && !"--dry-run".equals(mode) && !"--live".equals(mode)) {

@@ -26,6 +26,7 @@
         <h2>监控项</h2>
         <div class="actions">
           <button type="button" onclick="runMonitorSuite(this)">Run Monitor Suite</button>
+          <button type="button" class="secondary" onclick="sendTestAlert(this)">Send Test Alert</button>
         </div>
         <pre id="monitorRunResult"></pre>
         <ul>
@@ -60,12 +61,20 @@
     </main>
     <script>
       function runMonitorSuite(button) {
+        runAction(button, "/api/actions/monitor-suite", "running monitor suite ...");
+      }
+
+      function sendTestAlert(button) {
+        runAction(button, "/api/actions/test-alert", "sending test alert ...");
+      }
+
+      function runAction(button, url, runningText) {
         var previous = button.textContent;
         var result = document.getElementById("monitorRunResult");
         button.disabled = true;
         button.textContent = "Running";
-        result.textContent = "running monitor suite ...";
-        fetch("/api/actions/monitor-suite", {
+        result.textContent = runningText;
+        fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: "{}"

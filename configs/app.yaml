@@ -22,3 +22,9 @@ dolphinscheduler:
   token: ""
   audit_mode: false
   audit_dir: data/dolphinscheduler/audit
+
+alerts:
+  channels: ${ALERT_CHANNELS:-file}
+  target: ${ALERT_TARGET:-dba}
+  email_to: ${SMTP_TO:-}
+  outbox: ${ALERT_OUTBOX:-data/alerts/outbox.jsonl}

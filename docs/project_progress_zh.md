@@ -433,14 +433,21 @@ alter SQL 生成
 
 未完成：
 
-- 企业微信。
-- 飞书。
-- 邮件。
 - 电话/短信。
 - 告警收敛。
 - 告警升级。
 
-当前只有通知器接口和基础结果存储。
+当前已有：
+
+```text
+file/stdout outbox
+SMTP 邮件
+钉钉 webhook
+企业微信 webhook
+飞书 webhook
+监控套件自动按 ALERT_CHANNELS 发告警
+管理后台 Send Test Alert 验证入口
+```
 
 ### 4.10 管理平台产品化
 

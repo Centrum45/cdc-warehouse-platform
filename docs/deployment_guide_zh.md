@@ -135,6 +135,28 @@ COOKIE_SECURE=false
 COOKIE_SAME_SITE=Lax
 ```
 
+告警默认只写 outbox。本地测试可配置：
+
+```text
+ALERT_CHANNELS=file,stdout
+ALERT_OUTBOX=data/alerts/outbox.jsonl
+```
+
+生产邮件/群机器人告警可配置：
+
+```text
+ALERT_CHANNELS=file,email,dingtalk
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=cdc-alert@example.com
+SMTP_PASS=<change-me>
+SMTP_FROM=cdc-alert@example.com
+SMTP_TO=dba@example.com
+DINGTALK_WEBHOOK_URL=https://oapi.dingtalk.com/robot/send?access_token=...
+```
+
+部署后进入 `/monitors`，点击 `Send Test Alert` 验证告警链路。
+
 ### 3.4 下载 Hadoop 和 Hive
 
 本地 HDFS/Hive 容器会挂载工作区里的 Hadoop、Hive 二进制包。如果没有下载过，执行：

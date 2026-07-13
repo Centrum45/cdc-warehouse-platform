@@ -13,6 +13,7 @@ Use this before exposing the platform outside local debugging.
 - Admin UI is behind company network, VPN, or reverse proxy access control
 - Nginx HTTPS proxy is installed from `deploy/server/nginx/cdc-warehouse.conf`
 - MySQL/Kafka/Hive/HDFS credentials are passed by env files, not committed
+- `ALERT_CHANNELS` configured and `/monitors` -> `Send Test Alert` succeeds
 
 ## Preflight
 
