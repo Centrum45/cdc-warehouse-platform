@@ -15,8 +15,9 @@ insert ignore into table_metadata (
 );
 
 insert ignore into sync_task (task_name, task_type, command, schedule_expr) values
-('offline_sink', 'SparkStreaming', 'python3 streaming/offline_sink/spark_streaming_to_hdfs.py', 'continuous'),
-('ods_merge', 'SparkSQL', './scripts/run_daily_ods_merge.sh ${biz_dt}', '0 30 2 * * ?');
+('offline_sink', 'SparkStreaming', 'bash deploy/run_job.sh spark-streaming', 'continuous'),
+('ods_merge', 'SparkSQL', 'bash deploy/run_job.sh daily-merge ${biz_dt}', '0 30 2 * * ?'),
+('layer_sql', 'SparkSQL', 'bash deploy/run_job.sh layers ${biz_dt}', '0 50 2 * * ?');
 
 insert into monitor_result (monitor_type, source_database, source_table, status, message, metric_value) values
 ('delay', 'basiccomment', 'avatar_commentbatchsource', 'OK', 'delay within threshold', '0'),

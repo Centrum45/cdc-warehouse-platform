@@ -10,8 +10,10 @@
       <h1>MySQL To Hive Onboarding</h1>
       <nav>
         <a href="/">Dashboard</a>
+        <a href="/realtime">Realtime</a>
         <a href="/logs">Logs</a>
         <a href="/tasks">Task Config</a>
+        <a href="/table-ops">Table Ops</a>
         <a href="/onboarding">Onboarding</a>
         <a href="/replay">Replay</a>
         <a href="/monitors">Monitors</a>
@@ -46,9 +48,44 @@
       <section>
         <h2>Result</h2>
         <p>Exit Code: <#if result.exitCode == 0><span class="ok">${result.exitCode}</span><#else><span class="bad">${result.exitCode}</span></#if></p>
+        <div class="actions">
+          <button type="button" class="secondary" onclick="verifyOnboardedTable(this)">接入后验收</button>
+        </div>
         <pre>${result.output?html}</pre>
+        <pre id="onboardingVerifyResult"></pre>
       </section>
       </#if>
     </main>
+    <script>
+      function verifyOnboardedTable(button) {
+        var previous = button.textContent;
+        var body = new URLSearchParams();
+        body.set("databaseName", document.querySelector("[name='databaseName']").value);
+        body.set("tableName", document.querySelector("[name='tableName']").value);
+        body.set("bizDt", "");
+        body.set("startDt", "");
+        body.set("endDt", "");
+        body.set("dryRun", "false");
+        button.disabled = true;
+        button.textContent = "Running";
+        document.getElementById("onboardingVerifyResult").textContent = "running onboarding verify ...";
+        fetch("/api/table-ops/onboarding-verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          body: body
+        })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            document.getElementById("onboardingVerifyResult").textContent = "exitCode=" + data.exitCode + "\n" + (data.output || "");
+          })
+          .catch(function (error) {
+            document.getElementById("onboardingVerifyResult").textContent = String(error);
+          })
+          .finally(function () {
+            button.disabled = false;
+            button.textContent = previous;
+          });
+      }
+    </script>
   </body>
 </html>

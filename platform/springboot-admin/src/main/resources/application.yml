@@ -18,6 +18,8 @@ warehouse:
   project-root: ../..
   mysql:
     fallback-demo-data: false
+  merge:
+    audit-root: ${MERGE_AUDIT_ROOT:data/ops/merge_audit}
   actions:
     public-enabled: false
   validation:
@@ -34,6 +36,12 @@ warehouse:
     jdbc-url: ${HIVE_JDBC_URL:jdbc:hive2://localhost:10000/default}
     username: ${HIVE_USER:root}
     password: ${HIVE_PASSWORD:}
+  impala:
+    jdbc-url: ${IMPALA_JDBC_URL:jdbc:hive2://localhost:21050/realtime;transportMode=binary;auth=noSasl}
+    username: ${IMPALA_USER:}
+    password: ${IMPALA_PASSWORD:}
+    kudu-master-url: ${KUDU_MASTER_URL:http://localhost:8051}
+    ui-url: ${IMPALA_UI_URL:http://localhost:25000}
 
 springdoc:
   swagger-ui:

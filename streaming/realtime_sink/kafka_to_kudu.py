@@ -1,19 +1,7 @@
 from __future__ import annotations
 
-"""
-Realtime binlog → Kudu sink.
+"""Realtime binlog -> Kudu sink through Impala SQL."""
 
-Two modes:
-- Real mode: connects to Impala daemon, upserts into Kudu tables via Impala SQL.
-  Requires: pip install impyla thrift-sasl
-  Set KUDU_MASTERS env var or configure via configs/app.yaml.
-
-- Simulation mode (default): maintains an in-memory key-value state persisted
-  to local CSV. Used when Impala/Kudu are not available.
-"""
-
-import csv
-import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -109,116 +97,47 @@ def _upsert_to_kudu(
     return result
 
 
-# ---------------------------------------------------------------------------
-# Local CSV simulation (fallback)
-# ---------------------------------------------------------------------------
-
-def _csv_upsert(
-    events: list[Any],
-    meta: dict[str, Any],
-    table_path: Path,
-) -> int:
-    """Simulate Kudu upsert with in-memory dict + CSV persistence."""
-    state: dict[str, dict[str, object]] = {}
-
-    if table_path.exists():
-        with table_path.open("r", encoding="utf-8", newline="") as fp:
-            for row in csv.DictReader(fp):
-                state[str(row["id"])] = row
-
-    for event in events:
-        key = str(event.data.get("id"))
-        if event.is_delete:
-            state.pop(key, None)
-            continue
-        row = {col: event.data.get(col) for col in meta["columns"] if col != "event_ts"}
-        row["event_ts"] = event.ts
-        state[key] = row
-
-    columns = meta["columns"]
-    with table_path.open("w", encoding="utf-8", newline="") as fp:
-        writer = csv.DictWriter(fp, fieldnames=columns)
-        writer.writeheader()
-        for row in sorted(state.values(), key=lambda item: str(item["id"])):
-            writer.writerow(row)
-
-    return len(events)
-
-
-# ---------------------------------------------------------------------------
-# Main pipeline
-# ---------------------------------------------------------------------------
-
-
 def upsert_rows(
     topic_file: Path,
-    kudu_root: Path,
     checkpoint_path: Path,
-    use_real_kudu: bool = False,
-    realtime_engine: str | None = None,
 ) -> Path:
-    """Read binlog topic, upsert into Kudu (real or simulated).
-
-    Returns the output path for CSV simulation, or a status marker for real Kudu.
-    """
+    """Read binlog topic and upsert into Kudu through Impala."""
     topic = topic_file.stem
     checkpoint = FileCheckpoint(checkpoint_path)
     start_offset = checkpoint.load_offset(topic)
     events = parse_topic_file(topic_file)[start_offset:]
-
-    if not events:
-        return kudu_root / "realtime.avatar_commentbatchsource.csv"
-
     meta = _resolve_table(topic)
 
-    engine = (realtime_engine or os.environ.get("REALTIME_ENGINE") or "").lower()
-    if not engine:
-        engine = "kudu_impala" if use_real_kudu or os.environ.get("USE_REAL_KUDU", "").lower() in ("1", "true", "yes") else "local_csv"
-    if engine not in {"local_csv", "csv", "kudu_impala", "kudu"}:
-        raise ValueError(f"unsupported REALTIME_ENGINE: {engine}")
+    if not events:
+        return Path(f"realtime.{meta['impala_table']}.kudu")
 
-    # --- real Kudu path ---
-    if engine in {"kudu_impala", "kudu"}:
-        rows_to_upsert: list[dict[str, Any]] = []
-        keys_to_delete: list[dict[str, Any]] = []
+    rows_to_upsert: list[dict[str, Any]] = []
+    keys_to_delete: list[dict[str, Any]] = []
 
-        for event in events:
-            pk_vals = {k: event.data.get(k) for k in meta["primary_keys"] if event.data.get(k) is not None}
-            if event.is_delete:
-                keys_to_delete.append(pk_vals)
-            else:
-                row = {col: event.data.get(col) for col in meta["columns"] if col != "event_ts"}
-                row["event_ts"] = event.ts
-                rows_to_upsert.append(row)
-
-        result = _upsert_to_kudu(rows_to_upsert, keys_to_delete, meta)
-        if result.get("skipped"):
-            print(f"[kafka_to_kudu] real Kudu skipped: {result.get('reason')}. Falling back to CSV.")
-        elif result.get("success"):
-            print(f"[kafka_to_kudu] real Kudu: {result}")
-            checkpoint.save_offset(topic, start_offset + len(events))
-            return kudu_root / f"realtime.{meta['impala_table']}.kudu"
+    for event in events:
+        pk_vals = {k: event.data.get(k) for k in meta["primary_keys"] if event.data.get(k) is not None}
+        if event.is_delete:
+            keys_to_delete.append(pk_vals)
         else:
-            raise RuntimeError(f"real Kudu sink failed: {result.get('msg', result)}")
+            row = {col: event.data.get(col) for col in meta["columns"] if col != "event_ts"}
+            row["event_ts"] = event.ts
+            rows_to_upsert.append(row)
 
-    # --- CSV simulation path ---
-    table_path = kudu_root / f"realtime.{meta['impala_table']}.csv"
-    table_path.parent.mkdir(parents=True, exist_ok=True)
-    _csv_upsert(events, meta, table_path)
+    result = _upsert_to_kudu(rows_to_upsert, keys_to_delete, meta)
+    if result.get("skipped"):
+        raise RuntimeError(f"real Kudu sink unavailable: {result.get('reason')}")
+    if not result.get("success"):
+        raise RuntimeError(f"real Kudu sink failed: {result.get('msg', result)}")
+
+    print(f"[kafka_to_kudu] real Kudu: {result}")
     checkpoint.save_offset(topic, start_offset + len(events))
-    return table_path
+    return Path(f"realtime.{meta['impala_table']}.kudu")
 
 
 def main() -> None:
     topic_file = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("data/kafka/cdc.incremental.binlog.jsonl")
-    kudu_root = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("data/kudu")
-    checkpoint_path = Path(sys.argv[3]) if len(sys.argv) > 3 else Path("data/checkpoints/realtime_sink.json")
-    use_real = "--real" in sys.argv
-    engine = None
-    for arg in sys.argv:
-        if arg.startswith("--engine="):
-            engine = arg.split("=", 1)[1]
-    output = upsert_rows(topic_file, kudu_root, checkpoint_path, use_real_kudu=use_real, realtime_engine=engine)
+    checkpoint_path = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("data/checkpoints/realtime_sink.json")
+    output = upsert_rows(topic_file, checkpoint_path)
     print(output)
 
 

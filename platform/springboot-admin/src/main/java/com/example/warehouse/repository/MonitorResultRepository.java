@@ -35,4 +35,19 @@ public class MonitorResultRepository {
             return java.util.Collections.emptyList();
         }
     }
+
+    public void save(String monitorType, String databaseName, String tableName, String status, String message, String metricValue) {
+        try {
+            jdbcTemplate.update(
+                    "insert into monitor_result(monitor_type, source_database, source_table, status, message, metric_value) values(?,?,?,?,?,?)",
+                    monitorType,
+                    databaseName,
+                    tableName,
+                    status,
+                    message,
+                    metricValue
+            );
+        } catch (DataAccessException ignored) {
+        }
+    }
 }

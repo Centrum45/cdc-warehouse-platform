@@ -21,10 +21,17 @@ if [ -s data/ops/hdfs_warehouse_ls.txt ]; then
     | sort -u \
     | while IFS= read -r directory; do
       safe_name=$(printf '%s' "$directory" | sed 's#[^A-Za-z0-9._=-]#_#g')
-      docker exec cdc-warehouse-hdfs-namenode sh -lc "hdfs dfs -cat '$directory'/* 2>/dev/null | grep -v 'NativeCodeLoader' | head -20" \
-        > "data/ops/hdfs_samples/${safe_name}.head" 2>&1 || true
-      docker exec cdc-warehouse-hdfs-namenode sh -lc "hdfs dfs -cat '$directory'/* 2>/dev/null | grep -v 'NativeCodeLoader' | wc -l" \
-        > "data/ops/hdfs_samples/${safe_name}.count" 2>&1 || true
+      if docker exec cdc-warehouse-hdfs-namenode sh -lc "hdfs dfs -ls '$directory'/*.parquet >/dev/null 2>&1"; then
+        printf 'parquet partition: %s\nquery it through Hive/Spark/Impala\n' "$directory" \
+          > "data/ops/hdfs_samples/${safe_name}.head"
+        docker exec cdc-warehouse-hdfs-namenode sh -lc "hdfs dfs -ls '$directory'/*.parquet 2>/dev/null | wc -l" \
+          > "data/ops/hdfs_samples/${safe_name}.count" 2>&1 || true
+      else
+        docker exec cdc-warehouse-hdfs-namenode sh -lc "hdfs dfs -cat '$directory'/* 2>/dev/null | grep -v 'NativeCodeLoader' | head -20" \
+          > "data/ops/hdfs_samples/${safe_name}.head" 2>&1 || true
+        docker exec cdc-warehouse-hdfs-namenode sh -lc "hdfs dfs -cat '$directory'/* 2>/dev/null | grep -v 'NativeCodeLoader' | wc -l" \
+          > "data/ops/hdfs_samples/${safe_name}.count" 2>&1 || true
+      fi
     done
 fi
 

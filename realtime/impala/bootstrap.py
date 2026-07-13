@@ -80,7 +80,8 @@ def main() -> None:
     results = bootstrap_realtime(client=client, dry_run=args.dry_run)
     for result in results:
         status = "OK" if result.get("success") else "FAIL"
-        print(f"{status} {result.get('file')} {result.get('sql', result.get('msg', ''))}")
+        detail = result.get("sql") if result.get("success") else result.get("msg", result.get("sql", ""))
+        print(f"{status} {result.get('file')} {detail}")
     if any(not result.get("success") for result in results):
         raise SystemExit(1)
 

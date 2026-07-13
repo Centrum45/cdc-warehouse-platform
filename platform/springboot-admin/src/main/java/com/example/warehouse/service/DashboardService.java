@@ -49,6 +49,8 @@ public class DashboardService {
         snapshot.setKafkaLogs(readOpsFile("kafka.log", Arrays.asList("docker", "logs", "--tail", "80", "cdc-warehouse-kafka")));
         snapshot.setSparkStreamingLogs(readOpsFile("spark_streaming.log", Arrays.asList("docker", "logs", "--tail", "80", "cdc-warehouse-spark-streaming")));
         snapshot.setSparkSqlMergeLogs(readOpsFile("spark_sql_merge.log", null));
+        snapshot.setVerifyEndToEndLogs(readOpsFile("verify_end_to_end.log", null));
+        snapshot.setVerifyDiagnostics(readOpsFile("verify_diagnostics.txt", null));
         snapshot.setAdminLogs(readOpsFile("admin.log", Arrays.asList("docker", "logs", "--tail", "80", "cdc-warehouse-admin")));
         snapshot.setHdfsWarehouseListing(warehouseListing);
         snapshot.setHdfsNamenodeLogs(readOpsFile("hdfs_namenode.log", Arrays.asList("docker", "logs", "--tail", "80", "cdc-warehouse-hdfs-namenode")));
@@ -108,8 +110,8 @@ public class DashboardService {
                 view.setOdsBinlogSample(readHdfsHead(binlogHdfsDir, 5));
                 view.setOdsSample(readHdfsHead(odsHdfsDir, 8));
             } else {
-                File binlogFile = latestFile("ods_binlog", table.getDatabaseName(), table.getTableName(), "jsonl");
-                File odsFile = latestFile("ods", table.getDatabaseName(), table.getTableName(), "csv");
+                File binlogFile = latestFile("ods_binlog", table.getDatabaseName(), table.getTableName(), "parquet");
+                File odsFile = latestFile("ods", table.getDatabaseName(), table.getTableName(), "parquet");
                 view.setOdsBinlogPath(displayPath(binlogFile));
                 view.setOdsPath(displayPath(odsFile));
                 view.setOdsBinlogSample(readHead(binlogFile, 5));

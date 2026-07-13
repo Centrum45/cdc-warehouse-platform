@@ -11,8 +11,10 @@
       <div class="refresh">Auto refresh: 5s <small id="refreshStatus"></small></div>
       <nav>
         <a href="/">Dashboard</a>
+        <a href="/realtime">Realtime</a>
         <a href="/logs">Logs</a>
         <a href="/tasks">Task Config</a>
+        <a href="/table-ops">Table Ops</a>
         <a href="/onboarding">Onboarding</a>
         <a href="/replay">Replay</a>
         <a href="/monitors">Monitors</a>
@@ -53,6 +55,16 @@
       <section class="log-panel">
         <h2>SparkSQL Merge</h2>
         <pre id="sparkSqlMergeLogs" class="log-output" data-follow="true">${dashboard.sparkSqlMergeLogs?html}</pre>
+      </section>
+
+      <section class="log-panel">
+        <h2>E2E 验收</h2>
+        <pre id="verifyEndToEndLogs" class="log-output" data-follow="true">${dashboard.verifyEndToEndLogs?html}</pre>
+      </section>
+
+      <section class="log-panel">
+        <h2>E2E 诊断</h2>
+        <pre id="verifyDiagnostics" class="log-output" data-follow="true">${dashboard.verifyDiagnostics?html}</pre>
       </section>
 
       <section class="log-panel">
@@ -107,6 +119,8 @@
             setText("kafkaTopics", data.kafkaTopics);
             setText("sparkStreamingLogs", data.sparkStreamingLogs);
             setText("sparkSqlMergeLogs", data.sparkSqlMergeLogs);
+            setText("verifyEndToEndLogs", data.verifyEndToEndLogs);
+            setText("verifyDiagnostics", data.verifyDiagnostics);
             setText("adminLogs", data.adminLogs);
             setText("hdfsNamenodeLogs", data.hdfsNamenodeLogs);
             setText("containerStatus", data.containerStatus);

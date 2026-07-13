@@ -36,17 +36,17 @@ public class SecurityConfig {
         if (warehouseProperties.getActions().isPublicEnabled()) {
             http.authorizeRequests()
                 .antMatchers("/", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .antMatchers("/api/dashboard", "/api/actions/**", "/api/hive/**").permitAll()
-                .antMatchers("/api/tasks/**", "/api/metadata/**").permitAll()
+                .antMatchers("/api/dashboard", "/api/actions/**", "/api/hive/**", "/api/realtime/**").permitAll()
+                .antMatchers("/api/tasks/**", "/api/metadata/**", "/api/table-ops/**").permitAll()
                 .antMatchers("/tasks/**", "/onboarding/**", "/replay/**",
-                    "/monitors/**", "/rules/**", "/logs/**").permitAll()
+                    "/monitors/**", "/rules/**", "/logs/**", "/realtime/**", "/table-ops/**").permitAll()
                 .anyRequest().authenticated();
         } else {
             http.authorizeRequests()
                 .antMatchers("/", "/swagger-ui/**", "/v3/api-docs/**").authenticated()
                 .antMatchers("/api/**").authenticated()
                 .antMatchers("/tasks/**", "/onboarding/**", "/replay/**",
-                    "/monitors/**", "/rules/**", "/logs/**").authenticated()
+                    "/monitors/**", "/rules/**", "/logs/**", "/realtime/**", "/table-ops/**").authenticated()
                 .anyRequest().authenticated();
         }
 

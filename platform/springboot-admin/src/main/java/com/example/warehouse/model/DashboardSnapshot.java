@@ -10,6 +10,8 @@ public class DashboardSnapshot {
     private String kafkaLogs;
     private String sparkStreamingLogs;
     private String sparkSqlMergeLogs;
+    private String verifyEndToEndLogs;
+    private String verifyDiagnostics;
     private String adminLogs;
     private String hdfsWarehouseListing;
     private String hdfsNamenodeLogs;
@@ -32,6 +34,10 @@ public class DashboardSnapshot {
     public void setSparkStreamingLogs(String sparkStreamingLogs) { this.sparkStreamingLogs = sparkStreamingLogs; }
     public String getSparkSqlMergeLogs() { return sparkSqlMergeLogs; }
     public void setSparkSqlMergeLogs(String sparkSqlMergeLogs) { this.sparkSqlMergeLogs = sparkSqlMergeLogs; }
+    public String getVerifyEndToEndLogs() { return verifyEndToEndLogs; }
+    public void setVerifyEndToEndLogs(String verifyEndToEndLogs) { this.verifyEndToEndLogs = verifyEndToEndLogs; }
+    public String getVerifyDiagnostics() { return verifyDiagnostics; }
+    public void setVerifyDiagnostics(String verifyDiagnostics) { this.verifyDiagnostics = verifyDiagnostics; }
     public String getAdminLogs() { return adminLogs; }
     public void setAdminLogs(String adminLogs) { this.adminLogs = adminLogs; }
     public String getHdfsWarehouseListing() { return hdfsWarehouseListing; }

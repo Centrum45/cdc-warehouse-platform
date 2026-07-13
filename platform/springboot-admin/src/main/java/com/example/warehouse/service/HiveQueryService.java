@@ -32,6 +32,13 @@ public class HiveQueryService {
         HiveQueryResult result = new HiveQueryResult();
         String sql = request == null ? "" : safeTrim(request.getSql());
         int limit = request == null || request.getLimit() == null ? 100 : Math.max(1, Math.min(request.getLimit(), 500));
+        return queryWithJdbc(sql, limit, jdbcUrl, username, password);
+    }
+
+    public HiveQueryResult queryWithJdbc(String sql, int limit, String jdbcUrl, String username, String password) {
+        HiveQueryResult result = new HiveQueryResult();
+        sql = safeTrim(sql);
+        limit = Math.max(1, Math.min(limit, 500));
         if (sql.isEmpty()) {
             result.setExitCode(2);
             result.setMessage("sql is required");
@@ -44,7 +51,7 @@ public class HiveQueryService {
         }
         try {
             Class.forName("org.apache.hive.jdbc.HiveDriver");
-            try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password);
+            try (Connection connection = DriverManager.getConnection(jdbcUrl, username == null ? "" : username, password == null ? "" : password);
                  Statement statement = connection.createStatement()) {
                 statement.setMaxRows(limit);
                 boolean hasRows = statement.execute(sql);

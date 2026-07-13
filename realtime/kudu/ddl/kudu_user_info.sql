@@ -1,5 +1,5 @@
-create table realtime.user_info (
-  id bigint primary key,
+create table if not exists realtime.user_info (
+  id bigint,
   user_name string,
   mobile string,
   email string,
@@ -7,7 +7,9 @@ create table realtime.user_info (
   ctime string,
   utime string,
   ver int,
-  event_ts bigint
+  event_ts bigint,
+  primary key (id)
 )
 partition by hash(id) partitions 8
-stored as kudu;
+stored as kudu
+tblproperties ('kudu.num_tablet_replicas'='1');

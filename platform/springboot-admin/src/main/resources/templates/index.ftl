@@ -11,8 +11,10 @@
       <div class="refresh">Auto refresh: 5s <small id="refreshStatus"></small></div>
       <nav>
         <a href="/">Dashboard</a>
+        <a href="/realtime">Realtime</a>
         <a href="/logs">Logs</a>
         <a href="/tasks">Task Config</a>
+        <a href="/table-ops">Table Ops</a>
         <a href="/onboarding">Onboarding</a>
         <a href="/replay">Replay</a>
         <a href="/monitors">Monitors</a>
@@ -52,11 +54,27 @@
           </div>
           <button type="button" onclick="runAction('refresh-ops', this)">刷新快照</button>
           <button type="button" onclick="runAction('daily-merge', this)">跑每日 Merge</button>
-          <button type="button" onclick="runAction('full-pipeline', this)">跑 ADS 全链路</button>
           <button type="button" class="secondary" onclick="runAction('monitor-suite', this)">跑监控</button>
+          <button type="button" class="secondary" onclick="runAction('verify-e2e-local', this)">本地 E2E 验收</button>
+          <button type="button" class="secondary" onclick="runAction('verify-e2e-server', this)">服务器 E2E 验收</button>
           <button type="button" class="warn" onclick="runAction('ds-publish', this)">发布 DS</button>
         </div>
         <pre id="actionResult"></pre>
+      </section>
+
+      <section>
+        <h2>操作审计</h2>
+        <table id="actionAuditTable">
+          <tr>
+            <th>Time</th>
+            <th>Action</th>
+            <th>Operator</th>
+            <th>Client IP</th>
+            <th>Exit</th>
+            <th>Duration</th>
+          </tr>
+          <tr><td colspan="6" class="muted">loading</td></tr>
+        </table>
       </section>
 
       <section>
@@ -257,6 +275,7 @@
           .then(function (data) {
             result.textContent = "exitCode=" + data.exitCode + "\n" + (data.output || "");
             refreshDashboard();
+            refreshActionAudits();
           })
           .catch(function (error) {
             result.textContent = String(error);
@@ -342,10 +361,42 @@
           });
       }
 
+      function refreshActionAudits() {
+        fetch("/api/actions/audits", { cache: "no-store" })
+          .then(function (response) { return response.json(); })
+          .then(function (audits) {
+            var root = document.getElementById("actionAuditTable");
+            if (!root) return;
+            var rows = (audits || []).map(function (audit) {
+              return "<tr>"
+                + "<td>" + escapeHtml(audit.createdAt) + "</td>"
+                + "<td>" + escapeHtml(audit.actionName) + "</td>"
+                + "<td>" + escapeHtml(audit.operator) + "</td>"
+                + "<td>" + escapeHtml(audit.clientIp) + "</td>"
+                + "<td>" + escapeHtml(audit.exitCode) + "</td>"
+                + "<td>" + escapeHtml(audit.durationMs) + " ms</td>"
+                + "</tr>";
+            }).join("");
+            if (!rows) {
+              rows = '<tr><td colspan="6" class="muted">no audit records</td></tr>';
+            }
+            root.innerHTML = "<tr><th>Time</th><th>Action</th><th>Operator</th><th>Client IP</th><th>Exit</th><th>Duration</th></tr>" + rows;
+          })
+          .catch(function () {
+            var root = document.getElementById("actionAuditTable");
+            if (root) {
+              root.innerHTML = '<tr><th>Time</th><th>Action</th><th>Operator</th><th>Client IP</th><th>Exit</th><th>Duration</th></tr>'
+                + '<tr><td colspan="6" class="muted">audit unavailable</td></tr>';
+            }
+          });
+      }
+
       document.querySelectorAll("pre[data-follow='true']").forEach(function (el) {
         el.scrollTop = el.scrollHeight;
       });
+      refreshActionAudits();
       setInterval(refreshDashboard, 5000);
+      setInterval(refreshActionAudits, 5000);
     </script>
   </body>
 </html>

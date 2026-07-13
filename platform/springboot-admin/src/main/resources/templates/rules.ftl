@@ -10,8 +10,10 @@
       <h1>Rules</h1>
       <nav>
         <a href="/">Dashboard</a>
+        <a href="/realtime">Realtime</a>
         <a href="/logs">Logs</a>
         <a href="/tasks">Task Config</a>
+        <a href="/table-ops">Table Ops</a>
         <a href="/onboarding">Onboarding</a>
         <a href="/replay">Replay</a>
         <a href="/monitors">Monitors</a>

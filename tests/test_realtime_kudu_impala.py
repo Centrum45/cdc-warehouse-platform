@@ -77,22 +77,22 @@ class RealtimeKuduImpalaTest(unittest.TestCase):
             with patch("realtime.kudu.kudu_client.KuduClient.upsert_rows", return_value={"success": False, "msg": "boom"}):
                 with patch("realtime.kudu.kudu_client.KuduClient.is_available", new_callable=lambda: property(lambda self: True)):
                     with self.assertRaises(RuntimeError):
-                        upsert_rows(topic, Path(tmp) / "kudu", Path(tmp) / "ckpt.json", use_real_kudu=True)
+                        upsert_rows(topic, Path(tmp) / "ckpt.json")
 
-    def test_explicit_local_csv_engine(self) -> None:
+    def test_kudu_unavailable_raises(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             topic = Path(tmp) / "topic.jsonl"
             write_topic(topic)
-            output = upsert_rows(topic, Path(tmp) / "kudu", Path(tmp) / "ckpt.json", realtime_engine="local_csv")
-            self.assertTrue(output.exists())
-            self.assertIn("B1", output.read_text(encoding="utf-8"))
+            with patch("realtime.kudu.kudu_client.KuduClient.is_available", new_callable=lambda: property(lambda self: False)):
+                with self.assertRaises(RuntimeError):
+                    upsert_rows(topic, Path(tmp) / "ckpt.json")
 
-    def test_unsupported_realtime_engine(self) -> None:
+    def test_empty_topic_returns_kudu_marker(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             topic = Path(tmp) / "topic.jsonl"
-            write_topic(topic)
-            with self.assertRaises(ValueError):
-                upsert_rows(topic, Path(tmp) / "kudu", Path(tmp) / "ckpt.json", realtime_engine="unknown")
+            topic.write_text("", encoding="utf-8")
+            output = upsert_rows(topic, Path(tmp) / "ckpt.json")
+            self.assertEqual(str(output), "realtime.avatar_commentbatchsource.kudu")
 
 
 if __name__ == "__main__":
