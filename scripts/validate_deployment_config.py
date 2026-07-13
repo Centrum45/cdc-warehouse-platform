@@ -66,6 +66,11 @@ def check_env_examples():
         "WAREHOUSE_HDFS_ROOT",
         "PROGRESS_ROOT",
         "DELAY_GATE_MAX_SECONDS",
+        "MERGE_AUDIT_ROOT",
+        "MERGE_BACKUP_ROOT",
+        "SPARK_MASTER",
+        "SPARK_STREAMING_CHECKPOINT",
+        "SPARK_STREAMING_INTERVAL_SECONDS",
     }
     for path in ["deploy/server/admin.env.example", "deploy/prod/admin.env.example"]:
         env = parse_env(path)
