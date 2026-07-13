@@ -341,17 +341,16 @@ CSV 模拟已验证
 
 未完成：
 
-- 多用户。
-- RBAC。
 - 菜单级权限。
-- 操作级权限。
 - 审批流。
 - SSO/LDAP/OAuth 集成。
 
 当前已有：
 
 ```text
-admin 单账号
+admin 单账号兼容
+AUTH_USERS 多用户配置
+ADMIN/OPERATOR/VIEWER 基础 RBAC
 JWT 登录
 prod 强制鉴权
 操作审计日志
@@ -361,12 +360,18 @@ prod 强制鉴权
 
 未完成：
 
-- HTTPS/Nginx 示例配置。
-- Cookie Secure/SameSite 强化。
-- IP 白名单。
-- VPN/内网访问控制落地。
+- VPN/内网访问控制真实落地。
 - 密钥托管。
 - 敏感配置加密。
+
+当前已有：
+
+```text
+Nginx HTTPS 反代模板
+HSTS/X-Frame-Options/X-Content-Type-Options 示例
+Nginx IP 白名单示例
+Cookie Secure/SameSite 配置
+```
 
 ### 4.5 调度闭环
 

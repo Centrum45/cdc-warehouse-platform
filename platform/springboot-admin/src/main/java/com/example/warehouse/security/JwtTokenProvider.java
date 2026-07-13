@@ -23,11 +23,16 @@ public class JwtTokenProvider {
     }
 
     public String generateToken(String username) {
+        return generateToken(username, AuthUserService.ROLE_ADMIN);
+    }
+
+    public String generateToken(String username, String role) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
                 .setSubject(username)
+                .claim("role", role)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -36,6 +41,11 @@ public class JwtTokenProvider {
 
     public String getUsername(String token) {
         return parseClaims(token).getSubject();
+    }
+
+    public String getRole(String token) {
+        Object role = parseClaims(token).get("role");
+        return role == null ? AuthUserService.ROLE_ADMIN : String.valueOf(role);
     }
 
     public boolean validateToken(String token) {

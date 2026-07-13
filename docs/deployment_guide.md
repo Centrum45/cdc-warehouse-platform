@@ -111,6 +111,14 @@ LAKE_ROOT=hdfs://hdfs-namenode:8020/warehouse
 
 Do not put production secrets into `.env`. `.env` is local only.
 
+Admin auth defaults to `ADMIN_USER/ADMIN_PASS`. To test role-based access locally:
+
+```text
+AUTH_USERS=admin:admin123:ADMIN,ops:ops123:OPERATOR,viewer:viewer123:VIEWER
+COOKIE_SECURE=false
+COOKIE_SAME_SITE=Lax
+```
+
 ### 3.4 Download Hadoop And Hive
 
 The local HDFS/Hive containers mount Hadoop and Hive binaries from the repo workspace. If not already present, run:

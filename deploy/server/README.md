@@ -55,6 +55,14 @@ Admin UI:
 http://SERVER_IP:8080/
 ```
 
+Recommended production access:
+
+```text
+https://warehouse.example.com/
+```
+
+Use `deploy/server/nginx/cdc-warehouse.conf` as the Nginx reverse proxy template. Replace domain and certificate paths, then keep SpringBoot bound behind Nginx on port `8080`.
+
 Daily merge timer:
 
 ```bash
@@ -90,6 +98,8 @@ sudo REMOVE_DATA=true /opt/cdc-warehouse-platform/deploy/server/uninstall.sh
 - Admin startup fails if MySQL or project root is invalid.
 - `WAREHOUSE_ACTIONS_PUBLIC_ENABLED=false` keeps pages and action APIs behind login/JWT.
 - Change `ADMIN_PASS` and use a strong `JWT_SECRET` before startup.
+- Optional RBAC uses `AUTH_USERS=username:password:ROLE,...`; roles are `ADMIN`, `OPERATOR`, `VIEWER`.
+- Set `COOKIE_SECURE=true` when accessed through HTTPS.
 - `/login` provides browser login. `/api/auth/login` provides API JWT login.
 - SparkStreaming expects `kafka-console-consumer` on PATH.
 - Ops refresh uses `kafka-topics`, `hdfs`, and `beeline` if installed.

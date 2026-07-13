@@ -7,8 +7,11 @@ Use this before exposing the platform outside local debugging.
 - `SPRING_PROFILES_ACTIVE=prod`
 - `WAREHOUSE_ACTIONS_PUBLIC_ENABLED=false`
 - `ADMIN_PASS` changed from the default
+- `AUTH_USERS` configured if more than one operator needs access
 - `JWT_SECRET` is at least 32 characters and not shared with dev
+- `COOKIE_SECURE=true` when accessed by HTTPS
 - Admin UI is behind company network, VPN, or reverse proxy access control
+- Nginx HTTPS proxy is installed from `deploy/server/nginx/cdc-warehouse.conf`
 - MySQL/Kafka/Hive/HDFS credentials are passed by env files, not committed
 
 ## Preflight

@@ -43,10 +43,19 @@ public class SecurityConfig {
                 .anyRequest().authenticated();
         } else {
             http.authorizeRequests()
-                .antMatchers("/", "/swagger-ui/**", "/v3/api-docs/**").authenticated()
-                .antMatchers("/api/**").authenticated()
-                .antMatchers("/tasks/**", "/onboarding/**", "/replay/**",
-                    "/monitors/**", "/rules/**", "/logs/**", "/realtime/**", "/table-ops/**").authenticated()
+                .antMatchers("/", "/logs/**", "/realtime/**", "/swagger-ui/**", "/v3/api-docs/**")
+                    .hasAnyRole("ADMIN", "OPERATOR", "VIEWER")
+                .antMatchers("/api/dashboard", "/api/metadata/**", "/api/hive/**", "/api/realtime")
+                    .hasAnyRole("ADMIN", "OPERATOR", "VIEWER")
+                .antMatchers("/tasks/**", "/onboarding/**", "/replay/**", "/monitors/**", "/table-ops/**")
+                    .hasAnyRole("ADMIN", "OPERATOR")
+                .antMatchers("/api/tasks/**", "/api/table-ops/**", "/api/realtime/kafka-to-kudu")
+                    .hasAnyRole("ADMIN", "OPERATOR")
+                .antMatchers("/api/actions/ds-publish", "/rules/**")
+                    .hasRole("ADMIN")
+                .antMatchers("/api/actions/**")
+                    .hasAnyRole("ADMIN", "OPERATOR")
+                .antMatchers("/api/**").hasAnyRole("ADMIN", "OPERATOR")
                 .anyRequest().authenticated();
         }
 

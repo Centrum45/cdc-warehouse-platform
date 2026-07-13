@@ -49,16 +49,25 @@ public class WarehouseProperties {
     public static class Auth {
         private String adminUser = "admin";
         private String adminPass = "admin123";
+        private String users = "";
         private String jwtSecret = "cdc-warehouse-platform-secret-key-2026-minimum-256-bit-length";
         private long jwtExpirationMs = 86400000L;
+        private boolean cookieSecure;
+        private String cookieSameSite = "Lax";
 
         public String getAdminUser() { return adminUser; }
         public void setAdminUser(String adminUser) { this.adminUser = adminUser; }
         public String getAdminPass() { return adminPass; }
         public void setAdminPass(String adminPass) { this.adminPass = adminPass; }
+        public String getUsers() { return users; }
+        public void setUsers(String users) { this.users = users; }
         public String getJwtSecret() { return jwtSecret; }
         public void setJwtSecret(String jwtSecret) { this.jwtSecret = jwtSecret; }
         public long getJwtExpirationMs() { return jwtExpirationMs; }
         public void setJwtExpirationMs(long jwtExpirationMs) { this.jwtExpirationMs = jwtExpirationMs; }
+        public boolean isCookieSecure() { return cookieSecure; }
+        public void setCookieSecure(boolean cookieSecure) { this.cookieSecure = cookieSecure; }
+        public String getCookieSameSite() { return cookieSameSite; }
+        public void setCookieSameSite(String cookieSameSite) { this.cookieSameSite = cookieSameSite; }
     }
 }

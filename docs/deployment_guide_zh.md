@@ -127,6 +127,14 @@ LAKE_ROOT=hdfs://hdfs-namenode:8020/warehouse
 
 不要把生产密码写进 `.env`。`.env` 只用于本地。
 
+管理后台默认使用 `ADMIN_USER/ADMIN_PASS`。如果要本地测试多用户权限，可以设置：
+
+```text
+AUTH_USERS=admin:admin123:ADMIN,ops:ops123:OPERATOR,viewer:viewer123:VIEWER
+COOKIE_SECURE=false
+COOKIE_SAME_SITE=Lax
+```
+
 ### 3.4 下载 Hadoop 和 Hive
 
 本地 HDFS/Hive 容器会挂载工作区里的 Hadoop、Hive 二进制包。如果没有下载过，执行：
