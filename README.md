@@ -145,6 +145,20 @@ Run monitor suite:
 python3 monitors/run_monitor_suite.py
 ```
 
+Alert channel smoke:
+
+```bash
+ALERT_CHANNELS=file,stdout python3 scripts/send_test_alert.py
+```
+
+Admin auth and alert config:
+
+```text
+AUTH_USERS=admin:<pass>:ADMIN,ops:<pass>:OPERATOR,viewer:<pass>:VIEWER
+COOKIE_SECURE=true
+ALERT_CHANNELS=file,email,dingtalk
+```
+
 Control-plane skeleton:
 
 ```text
@@ -156,7 +170,7 @@ platform/springboot-admin
   /table-ops        table backfill, lineage check, consistency check, onboarding verification
   /onboarding       MySQL-to-Hive onboarding
   /replay           Maxwell bootstrap/replay
-  /monitors         delay/field/special/table/plaintext monitors
+  /monitors         delay/field/special/table/plaintext monitors, Send Test Alert
 ```
 
 Table-level operations are also available from CLI:

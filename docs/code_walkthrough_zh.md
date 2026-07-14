@@ -26,7 +26,7 @@ MySQL -> Maxwell -> Kafka -> Spark Streaming -> HDFS ods_binlog
 - `.env.example`：本地 Docker Compose 环境变量模板。面试说它用于覆盖 MySQL 密码、端口、profile 等部署参数。
 - `.github/workflows/ci.yml`：GitHub Actions CI，负责跑 Python 单测、SpringBoot 编译、Shell 语法、Docker Compose 配置检查。
 - `.gitignore`：忽略运行数据、虚拟环境、编译产物等。
-- `README.md`：项目入口说明，包含架构、快速启动、部署入口、实时 Kudu/Impala 用法。
+- `README.md`：项目入口说明，包含架构、快速启动、部署入口、权限/告警入口、实时 Kudu/Impala 用法。
 - `requirements.txt`：Python 依赖。核心是 `PyYAML`、`kafka-python`、`pyarrow`、`impyla`、`thrift-sasl`，PySpark 由容器或本机环境提供。
 
 ## `admin_platform`
@@ -65,6 +65,7 @@ MySQL -> Maxwell -> Kafka -> Spark Streaming -> HDFS ods_binlog
 - `deploy/server/README.md`：服务器部署说明。
 - `deploy/server/admin.env.example`：服务器版 Admin 环境变量模板。
 - `deploy/server/jobs.env.example`：服务器版 Spark/任务环境变量模板。
+- `deploy/server/nginx/cdc-warehouse.conf`：Nginx HTTPS 反代模板，包含 TLS、HSTS、安全 Header 和 IP 白名单示例。
 - `deploy/server/cdc-admin.service`：SpringBoot Admin 的 systemd service。
 - `deploy/server/cdc-spark-streaming.service`：Spark Streaming 长驻任务的 systemd service。
 - `deploy/server/cdc-daily-merge.service`：每日 merge 的一次性 systemd service。
@@ -172,7 +173,7 @@ DBA 提供的源表结构，用于字段监控和 onboarding。
 - `monitors/field_alter_sql.py`：根据字段差异生成 Hive `ALTER TABLE ADD COLUMNS`。
 - `monitors/field_monitor.py`：比较平台元数据和 DBA 元数据，发现新增/删除/类型变化。
 - `monitors/field_monitor_job.py`：字段监控命令行入口。
-- `monitors/notifier.py`：通知抽象，目前用于把告警写出或打印，生产可替换成邮件/企微。
+- `monitors/notifier.py`：告警通知器，支持 `file/stdout/email/dingtalk/wechat/feishu`，通过 `ALERT_CHANNELS` 配置多通道发送，并把所有告警写入 outbox 审计。
 - `monitors/null_rate_monitor.py`：检查关键字段空值率。
 - `monitors/partition_monitor.py`：检查分区是否缺失。
 - `monitors/plaintext_alert.py`：明文敏感数据告警模型。
@@ -256,9 +257,10 @@ SpringBoot 数据管理平台。面试可以按 MVC 讲：Controller 接 HTTP，
 
 ### `security`
 
-- `JwtAuthFilter.java`：从 Authorization header 或 cookie 取 JWT，设置 Spring Security 上下文。
-- `JwtTokenProvider.java`：生成和校验 JWT。
-- `SecurityConfig.java`：安全白名单和鉴权规则。dev 可开放部分接口，prod 要登录。
+- `AuthUserService.java`：解析 `AUTH_USERS`，支持 `ADMIN/OPERATOR/VIEWER` 三类角色；未配置时兼容 `ADMIN_USER/ADMIN_PASS` 单管理员。
+- `JwtAuthFilter.java`：从 Authorization header 或 cookie 取 JWT，解析 role，设置 Spring Security 上下文。
+- `JwtTokenProvider.java`：生成和校验 JWT，token 内包含用户名和角色。
+- `SecurityConfig.java`：安全白名单和 RBAC 鉴权规则。dev 可开放部分接口，prod 要登录；高风险操作如 DS 发布只允许 `ADMIN`。
 
 ### `service`
 

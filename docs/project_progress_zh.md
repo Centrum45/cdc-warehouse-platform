@@ -298,7 +298,6 @@ main 分支最新 CI 已通过。
 - 生产检查清单。
 - SpringBoot MySQL 文档。
 - Realtime Kudu/Impala 文档。
-- 实时数仓引擎选型文档。
 - FineBI 映射说明。
 - 指标说明。
 
@@ -507,15 +506,25 @@ basiccomment.avatar_commentbatchsource
 - Spark 参数调优。
 - 湖仓格式评估。
 
-### 5.3 管理平台安全等级不足
+### 5.3 管理平台安全等级仍需企业化
 
 当前适合内网或测试环境。
 
-生产对外开放前必须补：
+当前已经具备基础版：
 
-- HTTPS。
-- 访问控制。
-- 权限分级。
+```text
+JWT 登录
+ADMIN/OPERATOR/VIEWER 基础 RBAC
+Nginx HTTPS 反代模板
+Cookie Secure/SameSite 配置
+操作审计
+```
+
+生产对外开放前仍建议补：
+
+- SSO/LDAP/OAuth。
+- 审批流。
+- VPN/堡垒机/统一网关落地。
 - 密钥保护。
 
 ## 6. 下一步建议
@@ -525,8 +534,8 @@ basiccomment.avatar_commentbatchsource
 1. 找一台干净 Linux 服务器，按 `docs/deployment_guide_zh.md` 完整部署一次。
 2. 接一套真实 Kafka/HDFS/Hive 环境，跑 `control.sh preflight/health/smoke`。
 3. 接真实 Kudu/Impala，跑 `scripts/run_realtime_kudu_smoke.py`。
-4. 补 Nginx/HTTPS/内网访问控制。
-5. 补多用户 RBAC 和审批流。
+4. 在真实网关/Nginx/VPN 环境落地 HTTPS 和访问控制。
+5. 补 SSO/LDAP/OAuth、审批流和更细菜单级权限。
 6. 对 Parquet 小文件、压缩参数和分区粒度做压测优化。
 7. 对 3 到 5 张真实业务表做批量接入和压测。
 8. 补 DolphinScheduler 真实 DAG 联调和失败报警。
@@ -545,7 +554,7 @@ basiccomment.avatar_commentbatchsource
 有 CI
 有服务器部署脚本
 有实时 Kudu/Impala 真实模式代码
-有实时引擎选型说明
+有实时 Kudu/Impala 说明
 ```
 
 但还不是成熟企业级数据平台。
