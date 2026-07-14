@@ -11,7 +11,7 @@ timezone:
   offset_seconds: 28800
 
 pipeline:
-  default_process_date: "2026-07-08"
+  default_process_date: ${BIZ_DT:-}
   lookback_days: 1
 
 delay_gate:
