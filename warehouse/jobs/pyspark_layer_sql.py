@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from spark_runtime.session import create_spark
+from warehouse.spark_runtime.session import create_spark
 
 DEFAULT_HDFS_ROOT = "hdfs://localhost:8020/warehouse"
 

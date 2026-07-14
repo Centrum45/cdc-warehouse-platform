@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from storage.hdfs_web import WebHdfsLake, is_hdfs_root
+from warehouse.storage.hdfs_web import WebHdfsLake, is_hdfs_root
 from warehouse.jobs.merge_ods_snapshot import run_merge
 from warehouse.metadata_loader import load_table_metadata
 
@@ -62,7 +62,7 @@ def run_one_merge(
 ) -> str:
     if engine in ("auto", "pyspark"):
         try:
-            from spark_runtime.session import has_pyspark
+            from warehouse.spark_runtime.session import has_pyspark
             if has_pyspark():
                 from warehouse.jobs.pyspark_ods_merge import run_pyspark_merge
                 return f"pyspark:{run_pyspark_merge(str(metadata_path), str(lake_root), process_dt, audit_root=audit_root, backup_root=backup_root)}"

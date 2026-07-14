@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Iterable
 
-from storage.hdfs_web import HdfsPath, WebHdfsLake
+from warehouse.storage.hdfs_web import HdfsPath, WebHdfsLake
 
 BINLOG_PARQUET_COLUMNS = [
     "database_name",

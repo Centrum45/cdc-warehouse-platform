@@ -4,7 +4,7 @@
 
 ## 应提交
 
-- 项目源码：`platform/`、`warehouse/`、`streaming/`、`storage/`、`spark_runtime/`、`realtime/`、`ingestion/`、`monitors/`、`configs/`。
+- 项目源码：`platform/`、`warehouse/`、`streaming/`、`warehouse/storage/`、`warehouse/spark_runtime/`、`realtime/`、`ingestion/`、`monitors/`、`configs/`。
 - 部署脚本：`deploy/`、`docker/`、`scripts/`。
 - 元数据、SQL、调度定义：`metadata/`、`warehouse/sql/`、`warehouse/scheduler/`。
 - 文档：`README.md`、`docs/`。

@@ -6,8 +6,8 @@ import unittest
 from pathlib import Path
 
 from monitors.special_value_sql_builder import build_not_null_sql, build_special_value_sql
-from replay.replay_plan import ReplayPlan
-from replay.replay_runner import run_replay
+from warehouse.replay.replay_plan import ReplayPlan
+from warehouse.replay.replay_runner import run_replay
 from streaming.common.binlog_parser import parse_maxwell_event
 from streaming.common.checkpoint import FileCheckpoint
 

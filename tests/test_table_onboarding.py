@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from admin_platform.onboarding.table_onboarding import build_table_metadata, onboard_table
+from warehouse.onboarding import build_table_metadata, onboard_table
 
 
 DBA_METADATA = {

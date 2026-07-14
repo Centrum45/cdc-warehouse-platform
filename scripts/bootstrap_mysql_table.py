@@ -11,11 +11,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from ingestion.bootstrap.mysql_bootstrap import bootstrap_table
-from storage.hdfs_web import WebHdfsLake, is_hdfs_root
-from storage.binlog_parquet import event_to_binlog_row, read_hdfs_parquet, read_local_parquet, write_hdfs_parquet, write_local_parquet
-from storage.parquet_table import parquet_bytes
-from storage.parquet_table import write_local_parquet as write_table_parquet
-from storage.local_lake import LocalLake
+from warehouse.storage.hdfs_web import WebHdfsLake, is_hdfs_root
+from warehouse.storage.binlog_parquet import event_to_binlog_row, read_hdfs_parquet, read_local_parquet, write_hdfs_parquet, write_local_parquet
+from warehouse.storage.parquet_table import parquet_bytes
+from warehouse.storage.parquet_table import write_local_parquet as write_table_parquet
+from warehouse.storage.local_lake import LocalLake
 from warehouse.jobs.merge_ods_snapshot import run_merge
 from warehouse.jobs.delay_gate import write_progress
 

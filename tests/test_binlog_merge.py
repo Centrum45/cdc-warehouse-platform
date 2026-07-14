@@ -6,8 +6,8 @@ import tempfile
 from pathlib import Path
 
 from scripts.spark_sql_ods_merge_daily import binlog_partitions, run_daily_merge
-from storage.binlog_parquet import event_to_binlog_row, write_local_parquet as write_binlog_parquet
-from storage.parquet_table import read_local_parquet
+from warehouse.storage.binlog_parquet import event_to_binlog_row, write_local_parquet as write_binlog_parquet
+from warehouse.storage.parquet_table import read_local_parquet
 from warehouse.jobs.merge_ods_snapshot import merge_rows
 
 

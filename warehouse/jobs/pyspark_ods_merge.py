@@ -9,8 +9,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from spark_runtime.session import create_spark
-from storage.hdfs_web import is_hdfs_root
+from warehouse.spark_runtime.session import create_spark
+from warehouse.storage.hdfs_web import is_hdfs_root
 from warehouse.metadata_loader import data_columns, load_table_metadata
 
 DEFAULT_HDFS_ROOT = "hdfs://localhost:8020/warehouse"
@@ -46,7 +46,7 @@ def run_pyspark_merge(
 ) -> str:
     from pyspark.sql.functions import col, from_json, lit, row_number, when
     from pyspark.sql.window import Window
-    from spark_runtime.maxwell_schema import maxwell_schema
+    from warehouse.spark_runtime.maxwell_schema import maxwell_schema
 
     metadata = load_table_metadata(metadata_path)
     database = metadata["source_database"]

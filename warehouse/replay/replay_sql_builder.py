@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from replay.replay_plan import ReplayPlan
+from warehouse.replay.replay_plan import ReplayPlan
 
 
 def build_replay_sql(plan: ReplayPlan, ods_binlog_table: str) -> str:

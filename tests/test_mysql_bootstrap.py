@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ingestion.bootstrap.mysql_bootstrap import build_bootstrap_events, build_select_sql, rows_from_tsv, write_events
 from scripts.bootstrap_mysql_table import append_ods_binlog
-from storage.binlog_parquet import read_local_parquet, row_to_event
+from warehouse.storage.binlog_parquet import read_local_parquet, row_to_event
 
 
 METADATA = {

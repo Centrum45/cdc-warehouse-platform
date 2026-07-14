@@ -7,14 +7,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from spark_runtime.session import create_spark
+from warehouse.spark_runtime.session import create_spark
 
 DEFAULT_HDFS_ROOT = "hdfs://localhost:8020/warehouse"
 
 
 def run_local_file_batch(topic_file: str, output_root: str, master: str = "local[2]") -> None:
     from pyspark.sql.functions import col, from_json, struct, to_json
-    from spark_runtime.maxwell_schema import maxwell_schema
+    from warehouse.spark_runtime.maxwell_schema import maxwell_schema
 
     spark = create_spark("cdc-offline-local-file", master)
     raw = spark.read.text(topic_file)
@@ -53,7 +53,7 @@ def run_kafka_stream(
     trigger_seconds: int | None = None,
 ) -> None:
     from pyspark.sql.functions import col, current_timestamp, from_json, struct, to_json
-    from spark_runtime.maxwell_schema import maxwell_schema
+    from warehouse.spark_runtime.maxwell_schema import maxwell_schema
 
     spark = create_spark("cdc-offline-kafka-stream", master)
     reader = (

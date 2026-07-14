@@ -29,12 +29,11 @@ MySQL -> Maxwell -> Kafka -> Spark Streaming -> HDFS ods_binlog
 - `README.md`：项目入口说明，包含架构、快速启动、部署入口、权限/告警入口、实时 Kudu/Impala 用法。
 - `requirements.txt`：Python 依赖。核心是 `PyYAML`、`kafka-python`、`pyarrow`、`impyla`、`thrift-sasl`，PySpark 由容器或本机环境提供。
 
-## `admin_platform`
+## `warehouse/onboarding.py`
 
-这个目录放平台侧的 Python 辅助工具，目前核心是“接入新表”的元数据生成。
+平台侧新表接入辅助工具，负责根据 DBA 元数据生成内部元数据、Hive DDL 和 ODS merge SQL。
 
-- `admin_platform/onboarding/__init__.py`：包标记文件，无业务逻辑。
-- `admin_platform/onboarding/table_onboarding.py`：根据 DBA 元数据生成项目需要的表元数据、Hive DDL 和 ODS merge SQL。面试重点：新增 MySQL 表接入数仓时，不手写所有 SQL，而是由元数据驱动生成。
+- `warehouse/onboarding.py`：根据 DBA 元数据生成项目需要的表元数据、Hive DDL 和 ODS merge SQL。面试重点：新增 MySQL 表接入数仓时，不手写所有 SQL，而是由元数据驱动生成。
 
 ## `configs`
 
@@ -318,13 +317,13 @@ SpringBoot 数据管理平台。面试可以按 MVC 讲：Controller 接 HTTP，
 - `ddl/kudu_trade_order_info.sql`：订单 Kudu 表 DDL。
 - `ddl/kudu_user_info.sql`：用户 Kudu 表 DDL。
 
-## `replay`
+## `warehouse/replay`
 
 数据回放模块。面试可以说：用于数据丢失或首次镜像时，把指定时间段 binlog 重放到目标 topic/文件。
 
-- `replay_plan.py`：定义回放计划，包括库表、开始结束时间、模式。
-- `replay_runner.py`：执行回放，按计划过滤事件并写目标。
-- `replay_sql_builder.py`：生成回放相关 SQL 或查询条件。
+- `warehouse/replay/replay_plan.py`：定义回放计划，包括库表、开始结束时间、模式。
+- `warehouse/replay/replay_runner.py`：执行回放，按计划过滤事件并写目标。
+- `warehouse/replay/replay_sql_builder.py`：生成回放相关 SQL 或查询条件。
 
 ## `scripts`
 
@@ -353,21 +352,21 @@ SpringBoot 数据管理平台。面试可以按 MVC 讲：Controller 接 HTTP，
 - `validate_deployment_config.py`：校验部署配置是否缺失关键环境变量。
 - `verify_end_to_end.sh`：部署后的一键端到端验收入口。本地模式会验证 MySQL、Maxwell、Kafka、SparkStreaming、HDFS、ODS merge、Hive ODS、ADS 和 SpringBoot API；服务器模式会调用 `deploy/server/control.sh health/smoke`。
 
-## `spark_runtime`
+## `warehouse/spark_runtime`
 
 PySpark 公共运行时。
 
-- `spark_runtime/__init__.py`：包标记文件。
-- `spark_runtime/maxwell_schema.py`：Maxwell JSON 的 Spark StructType schema，以及元数据转 Spark schema。
-- `spark_runtime/session.py`：创建 SparkSession，设置时区和 HDFS DataNode hostname 参数。
+- `warehouse/spark_runtime/__init__.py`：包标记文件。
+- `warehouse/spark_runtime/maxwell_schema.py`：Maxwell JSON 的 Spark StructType schema，以及元数据转 Spark schema。
+- `warehouse/spark_runtime/session.py`：创建 SparkSession，设置时区和 HDFS DataNode hostname 参数。
 
-## `storage`
+## `warehouse/storage`
 
 存储适配层，让同一套逻辑可以写本地文件或 HDFS。
 
-- `storage/__init__.py`：包标记文件。
-- `storage/hdfs_web.py`：WebHDFS 客户端，支持读写 JSONL/CSV、mkdir、exists、list_status。
-- `storage/local_lake.py`：本地文件 lake 适配器，主要给单测和 debug fallback 用。
+- `warehouse/storage/__init__.py`：包标记文件。
+- `warehouse/storage/hdfs_web.py`：WebHDFS 客户端，支持读写 JSONL/CSV、mkdir、exists、list_status。
+- `warehouse/storage/local_lake.py`：本地文件 lake 适配器，主要给单测和 debug fallback 用。
 
 ## `streaming`
 
@@ -488,4 +487,4 @@ Hive 数仓 SQL。结构按层级组织：
 
 ### 7. 项目哪里是真实部署，哪里是本地 fallback？
 
-答：默认主链路已经走 Docker/生产 HDFS、Hive、Kafka、Spark、Kudu/Impala。`storage/local_lake.py` 和 `merge_ods_snapshot.py` 的本地模式主要用于单测和 debug，不是生产主链路。
+答：默认主链路已经走 Docker/生产 HDFS、Hive、Kafka、Spark、Kudu/Impala。`warehouse/storage/local_lake.py` 和 `merge_ods_snapshot.py` 的本地模式主要用于单测和 debug，不是生产主链路。

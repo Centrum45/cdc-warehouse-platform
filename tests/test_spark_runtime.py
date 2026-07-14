@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from spark_runtime.session import has_pyspark
+from warehouse.spark_runtime.session import has_pyspark
 
 
 class SparkRuntimeTest(unittest.TestCase):

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from replay.replay_plan import ReplayPlan
+from warehouse.replay.replay_plan import ReplayPlan
 
 
 def load_events(source_topic_file: Path, plan: ReplayPlan) -> list[dict]:

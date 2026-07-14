@@ -8,10 +8,10 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from storage.local_lake import LocalLake
-from storage.binlog_parquet import read_local_parquet, row_to_event
-from storage.parquet_table import read_local_parquet as read_table_parquet
-from storage.parquet_table import write_local_parquet as write_table_parquet
+from warehouse.storage.local_lake import LocalLake
+from warehouse.storage.binlog_parquet import read_local_parquet, row_to_event
+from warehouse.storage.parquet_table import read_local_parquet as read_table_parquet
+from warehouse.storage.parquet_table import write_local_parquet as write_table_parquet
 from warehouse.metadata_loader import load_table_metadata
 from warehouse.jobs.delay_gate import can_merge
 
