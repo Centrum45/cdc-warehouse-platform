@@ -39,11 +39,10 @@ MySQL -> Maxwell -> Kafka -> Spark Streaming -> HDFS ods_binlog
 
 配置加载层，区分 dev/prod。
 
-- `configs/app.yaml`：默认配置。当前默认存储是 HDFS：`hdfs://localhost:8020/warehouse`。
-- `configs/app-dev.yaml`：开发环境覆盖配置，仍指向本地 Docker HDFS，但允许更方便调试。
-- `configs/app-prod.yaml`：生产环境覆盖配置，依赖环境变量注入 HDFS、DS、进度目录、延迟阈值等。
+- `configs/app-dev.yaml`：开发环境配置，指向本地 Docker HDFS、DS、告警 outbox 等默认值。
+- `configs/app-prod.yaml`：生产环境配置，依赖环境变量注入 HDFS、WebHDFS、DS、进度目录、延迟阈值、告警通道等。
 - `configs/kafka.yaml`：Kafka topic、bootstrap server 等配置。
-- `configs/loader.py`：加载基础配置并按 `ENVIRONMENT` 合并环境配置，同时解析 `${ENV_VAR}` 形式的环境变量。面试可以讲这是为了同一套代码支持本地和生产部署。
+- `configs/loader.py`：按 `ENVIRONMENT` 读取 `app-dev.yaml` 或 `app-prod.yaml`，同时解析 `${ENV_VAR}` 形式的环境变量。面试可以讲这是为了同一套代码支持本地和生产部署。
 
 ## `deploy`
 

@@ -85,5 +85,10 @@ sudo /opt/cdc-warehouse-platform/deploy/server/control.sh restart
 
 Code must not hardcode environment endpoints. Use env vars or `configs/app-prod.yaml`.
 
+Python-side config is intentionally split into only two files:
+
+- `configs/app-dev.yaml` for local Docker/debug defaults.
+- `configs/app-prod.yaml` for production, with real endpoints injected through env vars.
+
 Local data paths are acceptable only in `dev`. Production paths should point to HDFS or external services.
 Spark/Python tasks use `deploy/run_job.sh` in both local and production; deployment mode changes only env values.

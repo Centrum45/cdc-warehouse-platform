@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 """
-Configuration loader with environment-specific layering.
+Configuration loader for environment-specific app config.
 
 Load order:
-    1. configs/app.yaml           (base)
-    2. configs/app-{env}.yaml     (override, default: dev)
+    1. configs/app-{env}.yaml     (default: dev)
+    2. environment variables inside ${VAR_NAME} or ${VAR_NAME:-default}
 
 Environment selection:
     Set ENVIRONMENT env var to "dev", "staging", or "prod".
@@ -42,40 +42,20 @@ def _resolve_env_vars(value: Any) -> Any:
     return value
 
 
-def _deep_merge(base: dict, override: dict) -> dict:
-    """Deep merge override into base. Override values win."""
-    result = dict(base)
-    for key, value in override.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = _deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
 def load_config(env: str | None = None) -> dict[str, Any]:
-    """Load layered configuration, resolving env vars.
+    """Load one environment config file and resolve env vars.
 
     Args:
         env: Environment name. Defaults to ENVIRONMENT env var or 'dev'.
     """
     environment = env or os.environ.get("ENVIRONMENT", "dev")
 
-    # 1. Load base config
-    base_path = _CONFIG_ROOT / "app.yaml"
-    if not base_path.exists():
-        raise FileNotFoundError(f"Base config not found: {base_path}")
-    with open(base_path, encoding="utf-8") as fh:
+    env_path = _CONFIG_ROOT / f"app-{environment}.yaml"
+    if not env_path.exists():
+        raise FileNotFoundError(f"Environment config not found: {env_path}")
+    with open(env_path, encoding="utf-8") as fh:
         config = yaml.safe_load(fh) or {}
 
-    # 2. Load environment override
-    env_path = _CONFIG_ROOT / f"app-{environment}.yaml"
-    if env_path.exists():
-        with open(env_path, encoding="utf-8") as fh:
-            override = yaml.safe_load(fh) or {}
-        config = _deep_merge(config, override)
-
-    # 3. Resolve environment variable references
     config = _resolve_env_vars(config)
 
     return config

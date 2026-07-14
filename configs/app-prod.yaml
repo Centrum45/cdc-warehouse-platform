@@ -1,5 +1,4 @@
-# CDC Warehouse Platform — Production environment overrides
-# Merged on top of app.yaml when ENVIRONMENT=prod
+# CDC Warehouse Platform — Production environment config
 # Secrets come from environment variables, NOT this file.
 
 storage:
@@ -7,6 +6,11 @@ storage:
   warehouse_root: ${WAREHOUSE_HDFS_ROOT}
   webhdfs_endpoint: ${WEBHDFS_ENDPOINT}
   webhdfs_user: ${WEBHDFS_USER}
+
+timezone:
+  source: UTC
+  warehouse: Asia/Shanghai
+  offset_seconds: 28800
 
 pipeline:
   default_process_date: ${BIZ_DT}
@@ -21,7 +25,14 @@ dolphinscheduler:
   endpoint: ${DS_ENDPOINT}
   token: ${DS_TOKEN}
   audit_mode: false
+  audit_dir: data/dolphinscheduler/audit
 
 logging:
   level: INFO
   format: json
+
+alerts:
+  channels: ${ALERT_CHANNELS:-file}
+  target: ${ALERT_TARGET:-dba}
+  email_to: ${SMTP_TO:-}
+  outbox: ${ALERT_OUTBOX:-data/alerts/outbox.jsonl}
