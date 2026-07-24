@@ -175,9 +175,9 @@ DBA 提供的源表结构，用于字段监控和 onboarding。
 - `monitors/null_rate_monitor.py`：检查关键字段空值率。
 - `monitors/partition_monitor.py`：检查分区是否缺失。
 - `monitors/plaintext_alert.py`：明文敏感数据告警模型。
-- `monitors/result_store.py`：保存监控结果。
+- `monitors/result_store.py`：保存本地监控审计；配置管理库连接后同步写 `monitor_result`。
 - `monitors/row_count_monitor.py`：源表和目标表行数校验。
-- `monitors/run_monitor_suite.py`：监控套件统一入口。
+- `monitors/run_monitor_suite.py`：配置驱动监控入口，扫描全部表元数据并用 Spark 检查本地/HDFS Parquet。
 - `monitors/sensitive_text_monitor.py`：扫描落地数据，发现疑似明文敏感值。
 - `monitors/special_value_monitor.py`：特殊值规则校验，例如不允许 `unknown`。
 - `monitors/special_value_sql_builder.py`：生成特殊值校验 SQL。
@@ -271,7 +271,7 @@ SpringBoot 数据管理平台。面试可以按 MVC 讲：Controller 接 HTTP，
 - `PlatformActionService.java`：页面按钮动作路由，例如 daily merge、monitor suite、DS publish、Kafka->Kudu、本地/服务器 E2E 验收。
 - `MergeTaskStatusService.java`：扫描 `data/ops/merge_audit` 下的 merge 审计 JSON，并同步到 `merge_task_status` 表。
 - `RealtimeService.java`：查询 Impala/Kudu 实时表、视图和连接状态。
-- `ReplayService.java`：生成回放命令并记录回放任务。
+- `ReplayService.java`：校验回放请求，执行全量 MySQL 快照重放并更新任务状态。
 - `RuleService.java`：敏感规则读取/保存。
 - `StartupValidationService.java`：启动时校验生产配置，避免默认密码、默认 secret、缺路径。
 - `TaskConfigService.java`：任务配置读取/保存、手动运行任务、按历史执行记录重跑命令。
@@ -386,7 +386,8 @@ PySpark 公共运行时。
 
 ### `streaming/realtime_sink`
 
-- `kafka_to_kudu.py`：实时链路核心。读取 Kafka 导出的 JSONL，按表 schema 做 upsert/delete，通过 Impala 写 Kudu；也保留 local CSV fallback 用于单测。
+- `pyspark_kafka_to_kudu.py`：生产实时链路核心。Structured Streaming 直接消费 Kafka，按主键和版本折叠 micro-batch，通过 Impala UPSERT/DELETE Kudu，并由 Spark checkpoint 管理 offset。
+- `kafka_to_kudu.py`：一次性 smoke/debug 写入入口。
 
 ## `tests`
 

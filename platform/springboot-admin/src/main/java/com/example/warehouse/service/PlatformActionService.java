@@ -34,7 +34,14 @@ public class PlatformActionService {
             return commandExecutorService.run(command, 300);
         }
         if ("monitor-suite".equals(action)) {
-            return commandExecutorService.run(Arrays.asList("python3", "monitors/run_monitor_suite.py"), 120);
+            List<String> command = new ArrayList<>();
+            command.add("bash");
+            command.add("deploy/run_job.sh");
+            command.add("monitors");
+            if (request != null && notBlank(request.getBizDt())) {
+                command.add(request.getBizDt().trim());
+            }
+            return commandExecutorService.run(command, 1800);
         }
         if ("test-alert".equals(action)) {
             return commandExecutorService.run(Arrays.asList("python3", "scripts/send_test_alert.py"), 60);

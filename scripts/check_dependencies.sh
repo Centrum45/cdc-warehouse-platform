@@ -104,6 +104,7 @@ case "${mode}" in
     check_module pyarrow
     check_module yaml
     check_module pyspark
+    check_module pymysql
     check_optional_module impala
     ;;
   prod)
@@ -114,6 +115,7 @@ case "${mode}" in
     check_optional_cmd mvn
     check_module pyarrow
     check_module pyspark
+    check_module pymysql
     if [[ -f deploy/prod/jobs.env ]]; then
       bash deploy/run_job.sh --env-file deploy/prod/jobs.env --help >/dev/null && pass "deploy/prod/jobs.env loadable"
     else

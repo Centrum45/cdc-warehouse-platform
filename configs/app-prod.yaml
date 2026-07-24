@@ -19,7 +19,7 @@ pipeline:
 delay_gate:
   enabled: true
   max_delay_seconds: ${DELAY_GATE_MAX_SECONDS:-1800}
-  progress_root: ${PROGRESS_ROOT:-/warehouse/progress}
+  progress_root: ${PROGRESS_ROOT:-hdfs://nameservice1/warehouse/progress}
 
 dolphinscheduler:
   endpoint: ${DS_ENDPOINT}

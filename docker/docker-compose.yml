@@ -93,6 +93,15 @@ services:
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       WAREHOUSE_PROJECT_ROOT: /workspace
+      SOURCE_MYSQL_MODE: direct
+      SOURCE_MYSQL_HOST: mysql
+      SOURCE_MYSQL_PORT: 3306
+      SOURCE_MYSQL_USER: root
+      SOURCE_MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      LAKE_ROOT: hdfs://hdfs-namenode:8020/warehouse
+      WEBHDFS_ENDPOINT: http://hdfs-namenode:9870
+      WEBHDFS_USER: root
+      PROGRESS_ROOT: hdfs://hdfs-namenode:8020/warehouse/progress
       HIVE_JDBC_URL: jdbc:hive2://hive-server:10000/default
       HIVE_USER: root
       HIVE_PASSWORD:

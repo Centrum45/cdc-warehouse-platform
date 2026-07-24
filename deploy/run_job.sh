@@ -5,13 +5,17 @@ usage() {
   cat >&2 <<'EOF'
 usage:
   deploy/run_job.sh [--env-file FILE] spark-streaming
+  deploy/run_job.sh [--env-file FILE] realtime-streaming
   deploy/run_job.sh [--env-file FILE] daily-merge [biz_dt]
   deploy/run_job.sh [--env-file FILE] layers <biz_dt>
+  deploy/run_job.sh [--env-file FILE] monitors [biz_dt]
 
 Common env:
   PROJECT_ROOT, SPARK_MASTER, LAKE_ROOT, KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPIC
   SPARK_STREAMING_CHECKPOINT, SPARK_STARTING_OFFSETS, SPARK_MAX_OFFSETS_PER_TRIGGER
   SPARK_BAD_RECORDS_PATH, SPARK_STREAMING_INTERVAL_SECONDS
+  SPARK_SENSITIVE_RULES, SPARK_SENSITIVE_ALERT_PATH
+  REALTIME_STREAMING_CHECKPOINT, REALTIME_MAX_OFFSETS_PER_TRIGGER
   PROGRESS_ROOT, DELAY_GATE_MAX_SECONDS, MERGE_AUDIT_ROOT, MERGE_BACKUP_ROOT, BIZ_DT
 EOF
 }
@@ -81,6 +85,15 @@ run_spark_streaming() {
   if [[ -n "${SPARK_BAD_RECORDS_PATH:-}" ]]; then
     command+=(--bad-records-path "${SPARK_BAD_RECORDS_PATH}")
   fi
+  if [[ -n "${SPARK_SENSITIVE_RULES:-}" ]]; then
+    command+=(--sensitive-rules "${SPARK_SENSITIVE_RULES}")
+  fi
+  if [[ -n "${SPARK_SENSITIVE_ALERT_PATH:-}" ]]; then
+    command+=(--sensitive-alert-path "${SPARK_SENSITIVE_ALERT_PATH}")
+  fi
+  if [[ -n "${PROGRESS_ROOT:-}" ]]; then
+    command+=(--progress-root "${PROGRESS_ROOT}")
+  fi
 
   "${command[@]}"
 }
@@ -109,6 +122,24 @@ run_daily_merge() {
     --backup-root "${MERGE_BACKUP_ROOT:-${lake_root%/}/ods_backup}"
 }
 
+run_realtime_streaming() {
+  : "${KAFKA_BOOTSTRAP_SERVERS:?KAFKA_BOOTSTRAP_SERVERS is required}"
+  local command=(
+    spark-submit
+    --master "${SPARK_MASTER:-local[2]}"
+    --packages "${SPARK_KAFKA_PACKAGE:-org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1}"
+    streaming/realtime_sink/pyspark_kafka_to_kudu.py
+    "${KAFKA_BOOTSTRAP_SERVERS}"
+    "${KAFKA_TOPIC:-cdc.incremental.binlog}"
+    "${REALTIME_STREAMING_CHECKPOINT:-${LAKE_ROOT:-hdfs://localhost:8020/warehouse}/checkpoints/realtime_kudu}"
+    --master "${SPARK_MASTER:-local[2]}"
+    --starting-offsets "${SPARK_STARTING_OFFSETS:-latest}"
+    --max-offsets-per-trigger "${REALTIME_MAX_OFFSETS_PER_TRIGGER:-5000}"
+    --trigger-seconds "${SPARK_STREAMING_INTERVAL_SECONDS:-5}"
+  )
+  "${command[@]}"
+}
+
 run_layers() {
   local biz_dt="${1:-${BIZ_DT:-}}"
   if [[ -z "${biz_dt}" ]]; then
@@ -127,6 +158,19 @@ run_layers() {
     "${pyspark_python}" warehouse/jobs/pyspark_layer_sql.py \
     --lake-root "${LAKE_ROOT:-hdfs://localhost:8020/warehouse}" \
     --biz-dt "${biz_dt}"
+}
+
+run_monitors() {
+  local biz_dt="${1:-${BIZ_DT:-}}"
+  if [[ -z "${biz_dt}" ]]; then
+    biz_dt="$(default_biz_dt)"
+  fi
+  spark-submit \
+    --master "${SPARK_MASTER:-local[2]}" \
+    monitors/run_monitor_suite.py \
+    --biz-dt "${biz_dt}" \
+    --lake-root "${LAKE_ROOT:-hdfs://localhost:8020/warehouse}" \
+    --master "${SPARK_MASTER:-local[2]}"
 }
 
 env_file=""
@@ -169,11 +213,17 @@ case "${job}" in
   spark-streaming)
     run_spark_streaming "$@"
     ;;
+  realtime-streaming)
+    run_realtime_streaming "$@"
+    ;;
   daily-merge)
     run_daily_merge "$@"
     ;;
   layers)
     run_layers "$@"
+    ;;
+  monitors)
+    run_monitors "$@"
     ;;
   *)
     echo "unknown job: ${job}" >&2

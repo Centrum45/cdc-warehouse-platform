@@ -43,6 +43,19 @@ load_env "${jobs_env}" || true
 for name in SPRING_PROFILES_ACTIVE WAREHOUSE_PROJECT_ROOT DB_HOST DB_NAME DB_USER DB_PASSWORD ADMIN_USER ADMIN_PASS JWT_SECRET HIVE_JDBC_URL; do
   require_value "${name}"
 done
+for name in SOURCE_MYSQL_HOST SOURCE_MYSQL_USER SOURCE_MYSQL_PASSWORD KAFKA_BOOTSTRAP_SERVERS KAFKA_TOPIC LAKE_ROOT WEBHDFS_ENDPOINT WEBHDFS_USER PROGRESS_ROOT SPARK_MASTER; do
+  require_value "${name}"
+done
+
+if [[ "${SOURCE_MYSQL_MODE:-direct}" != "direct" ]]; then
+  fail "SOURCE_MYSQL_MODE must be direct in production"
+fi
+
+if [[ "${REALTIME_STREAMING_ENABLED:-false}" == "true" ]]; then
+  for name in IMPALA_HOST IMPALA_PORT KUDU_MASTERS REALTIME_STREAMING_CHECKPOINT; do
+    require_value "${name}"
+  done
+fi
 
 if [[ "${SPRING_PROFILES_ACTIVE:-}" != "prod" ]]; then
   fail "SPRING_PROFILES_ACTIVE must be prod"
@@ -61,7 +74,7 @@ if [[ "${#jwt_secret}" -lt 32 ]]; then
   fail "JWT_SECRET must be at least 32 characters"
 fi
 
-for cmd in java python3 bash; do
+for cmd in java python3 bash spark-submit; do
   if command -v "${cmd}" >/dev/null 2>&1; then
     pass "command ${cmd}"
   else

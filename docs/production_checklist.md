@@ -14,6 +14,8 @@ Use this before exposing the platform outside local debugging.
 - Nginx HTTPS proxy is installed from `deploy/server/nginx/cdc-warehouse.conf`
 - MySQL/Kafka/Hive/HDFS credentials are passed by env files, not committed
 - `ALERT_CHANNELS` configured and `/monitors` -> `Send Test Alert` succeeds
+- `SOURCE_MYSQL_MODE=direct` and the source account is read-only
+- `SOURCE_MYSQL_HOST/USER/PASSWORD` configured in `jobs.env`
 
 ## Preflight
 
@@ -26,14 +28,17 @@ sudo /opt/cdc-warehouse-platform/deploy/server/control.sh health
 
 - `cdc-admin.service` is running
 - `cdc-spark-streaming.service` is running
+- `cdc-realtime-streaming.service` is running when `REALTIME_STREAMING_ENABLED=true`
 - `cdc-ops-refresh.service` is running
 - `cdc-daily-merge.timer` is enabled
+- `cdc-monitor.timer` is enabled
 - `/logs` shows recent Maxwell, Kafka, SparkStreaming, and Admin logs
 
 ## Data
 
 - HDFS warehouse root exists
 - `ods_binlog` receives new partitions
+- HDFS `progress` files update for every onboarded table
 - daily ODS merge writes ODS snapshots
 - Hive partitions can be repaired with `msck repair table`
 - ADS tables return rows for the latest business date

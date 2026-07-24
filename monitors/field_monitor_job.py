@@ -21,6 +21,24 @@ def diff_columns(platform_metadata: Path, dba_metadata: Path) -> list[dict[str, 
     return [column for column in dba if column["name"] not in platform]
 
 
+def diff_schema(platform_metadata: Path, dba_metadata: Path) -> dict[str, list]:
+    platform = {column["name"]: column for column in load_columns(platform_metadata)}
+    dba = {column["name"]: column for column in load_columns(dba_metadata)}
+    return {
+        "added": [column for name, column in dba.items() if name not in platform],
+        "removed": [column for name, column in platform.items() if name not in dba],
+        "type_changed": [
+            {
+                "name": name,
+                "from": platform[name]["type"],
+                "to": column["type"],
+            }
+            for name, column in dba.items()
+            if name in platform and str(platform[name]["type"]).lower() != str(column["type"]).lower()
+        ],
+    }
+
+
 def main() -> None:
     platform_metadata = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("metadata/tables/basiccomment.avatar_commentbatchsource.json")
     dba_metadata = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("metadata/dba/basiccomment.avatar_commentbatchsource.json")

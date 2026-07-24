@@ -20,7 +20,7 @@ Runtime interfaces:
 - Kudu/Impala: Docker single-node realtime cluster, Impala views, Kudu upsert smoke
 - Platform: SpringBoot + Freemarker admin console
 - Scheduler: DolphinScheduler workflow definitions
-- Debug fallbacks: local JSONL input plus Parquet lake data under `data/lake`; realtime local Kudu fallback still uses CSV
+- Debug fallbacks: local JSONL input plus Parquet lake data under `data/lake`
 
 ## Local Quick Start
 
@@ -92,8 +92,10 @@ PySpark jobs:
 ```bash
 # local/production use the same job entrypoints; only env values differ
 bash deploy/run_job.sh spark-streaming
+bash deploy/run_job.sh realtime-streaming
 bash deploy/run_job.sh daily-merge 2026-07-06
 bash deploy/run_job.sh layers 2026-07-06
+bash deploy/run_job.sh monitors 2026-07-06
 
 # production env file
 bash deploy/run_job.sh --env-file deploy/prod/jobs.env daily-merge 2026-07-06
@@ -111,8 +113,8 @@ bash scripts/run_local_kudu_impala_smoke.sh
 # consume real Docker Kafka once, then upsert Kudu through Impala
 python3 scripts/spark_streaming_kafka_to_kudu_once.py --bootstrap-objects
 
-# continuously consume Docker Kafka in SparkStreaming-style micro-batches
-python3 scripts/spark_streaming_kafka_to_kudu_loop.py --bootstrap-objects
+# production Structured Streaming with Spark checkpointed Kafka offsets
+bash deploy/run_job.sh realtime-streaming
 
 # real production Impala/Kudu, after setting IMPALA_* and KUDU_MASTERS
 python3 -m realtime.impala.bootstrap
@@ -133,6 +135,10 @@ Onboard MySQL table to Hive:
 python3 scripts/onboard_table.py metadata/dba/basiccomment.avatar_commentbatchsource.json id ver ctime
 ```
 
+Production onboarding uses `SOURCE_MYSQL_MODE=direct` plus
+`SOURCE_MYSQL_HOST/PORT/USER/PASSWORD`. Local development can leave the host
+empty and use the Docker MySQL container.
+
 Publish DolphinScheduler workflow in local audit mode:
 
 ```bash
@@ -142,7 +148,7 @@ python3 scripts/publish_dolphinscheduler.py
 Run monitor suite:
 
 ```bash
-python3 monitors/run_monitor_suite.py
+python3 monitors/run_monitor_suite.py --biz-dt YYYY-MM-DD --lake-root hdfs://localhost:8020/warehouse
 ```
 
 Alert channel smoke:
@@ -262,6 +268,7 @@ sudo /opt/cdc-warehouse-platform/deploy/server/control.sh status
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh logs cdc-spark-streaming.service
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh smoke --biz-dt 2026-07-07
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh merge
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh monitors
 systemctl list-timers | grep cdc-daily-merge
 ```
 

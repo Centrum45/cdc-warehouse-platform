@@ -27,6 +27,17 @@ sudo /opt/cdc-warehouse-platform/deploy/server/control.sh start
 sudo /opt/cdc-warehouse-platform/deploy/server/control.sh health
 ```
 
+Set `REALTIME_STREAMING_ENABLED=true` in `jobs.env` only when the server can
+reach Impala/Kudu. This enables `cdc-realtime-streaming.service`.
+
+Run the monitor suite immediately:
+
+```bash
+sudo /opt/cdc-warehouse-platform/deploy/server/control.sh monitors
+```
+
+`cdc-monitor.timer` also runs it daily at 04:00.
+
 Preview install actions without writing `/opt`, `/etc`, or systemd:
 
 ```bash

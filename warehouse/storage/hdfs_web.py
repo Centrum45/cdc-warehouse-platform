@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError
@@ -41,7 +42,9 @@ class WebHdfsLake:
         self.root = HdfsPath(root.rstrip("/"))
         host = parsed.hostname or "localhost"
         self._namenode_host = host
-        self._http_base = f"http://{host}:9870/webhdfs/v1"
+        endpoint = os.environ.get("WEBHDFS_ENDPOINT", f"http://{host}:9870").rstrip("/")
+        self._http_base = f"{endpoint}/webhdfs/v1"
+        self._user = os.environ.get("WEBHDFS_USER", "root")
 
     def binlog_partition(self, database: str, table: str, dt: str) -> HdfsPath:
         return self.root / "ods_binlog" / f"db={database}" / f"table={table}" / f"dt={dt}"
@@ -122,7 +125,7 @@ class WebHdfsLake:
 
     def _url(self, path: HdfsPath, op: str, **params: str) -> str:
         parsed = urlparse(path.value)
-        query = urlencode({"op": op, "user.name": "root", **params})
+        query = urlencode({"op": op, "user.name": self._user, **params})
         return f"{self._http_base}{parsed.path}?{query}"
 
     def _rewrite_redirect(self, location: str) -> str:

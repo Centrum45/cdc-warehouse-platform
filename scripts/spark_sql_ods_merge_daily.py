@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from warehouse.storage.hdfs_web import WebHdfsLake, is_hdfs_root
+from warehouse.jobs.delay_gate import can_merge
 from warehouse.jobs.merge_ods_snapshot import run_merge
 from warehouse.metadata_loader import load_table_metadata
 
@@ -55,11 +56,20 @@ def run_one_merge(
     lake_root: str | Path,
     process_dt: str,
     engine: str,
-    progress_root: Path,
+    progress_root: str | Path,
     max_delay_seconds: int,
     audit_root: str | None = "data/ops/merge_audit",
     backup_root: str | None = None,
 ) -> str:
+    metadata = load_table_metadata(metadata_path)
+    allowed, reason = can_merge(
+        progress_root,
+        metadata["source_database"],
+        metadata["source_table"],
+        max_delay_seconds,
+    )
+    if not allowed:
+        raise RuntimeError(f"delay gate blocked {metadata['source_database']}.{metadata['source_table']}: {reason}")
     if engine in ("auto", "pyspark"):
         try:
             from warehouse.spark_runtime.session import has_pyspark
@@ -72,7 +82,7 @@ def run_one_merge(
             if engine == "pyspark":
                 raise
 
-    written = run_merge(metadata_path, Path(lake_root), process_dt, progress_root, max_delay_seconds)
+    written = run_merge(metadata_path, Path(lake_root), process_dt, Path(progress_root), max_delay_seconds)
     return "local:" + ",".join(str(path) for path in written)
 
 
@@ -81,7 +91,7 @@ def run_daily_merge(
     lake_root: str | Path,
     biz_dt: str,
     engine: str,
-    progress_root: Path,
+    progress_root: str | Path,
     max_delay_seconds: int,
     audit_root: str | None = "data/ops/merge_audit",
     backup_root: str | None = None,
@@ -114,7 +124,7 @@ def main() -> None:
         args.lake_root if is_hdfs_root(args.lake_root) else Path(args.lake_root),
         args.biz_dt,
         args.engine,
-        Path(args.progress_root),
+        args.progress_root if is_hdfs_root(args.progress_root) else Path(args.progress_root),
         args.max_delay_seconds,
         args.audit_root,
         args.backup_root,

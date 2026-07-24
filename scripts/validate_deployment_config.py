@@ -60,6 +60,10 @@ def check_env_examples():
     }
     jobs_required = {
         "ENVIRONMENT",
+        "SOURCE_MYSQL_MODE",
+        "SOURCE_MYSQL_HOST",
+        "SOURCE_MYSQL_USER",
+        "SOURCE_MYSQL_PASSWORD",
         "KAFKA_BOOTSTRAP_SERVERS",
         "KAFKA_TOPIC",
         "LAKE_ROOT",
@@ -84,6 +88,7 @@ def check_env_examples():
         missing = sorted(jobs_required - env.keys())
         require(not missing, f"{path}: missing {missing}")
         require(env["ENVIRONMENT"] == "prod", f"{path}: environment must be prod")
+        require(env["SOURCE_MYSQL_MODE"] == "direct", f"{path}: source MySQL mode must be direct")
 
 
 def check_docs_reference_preflight():

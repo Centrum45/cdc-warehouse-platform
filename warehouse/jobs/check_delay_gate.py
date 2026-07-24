@@ -15,7 +15,8 @@ def main() -> None:
     config = load_config()
 
     delay_cfg = config.get("delay_gate", {})
-    progress_root = Path(delay_cfg.get("progress_root", "data/progress"))
+    configured_root = delay_cfg.get("progress_root", "data/progress")
+    progress_root = configured_root if str(configured_root).startswith("hdfs://") else Path(configured_root)
     max_delay_seconds = delay_cfg.get("max_delay_seconds", 900)
     enabled = delay_cfg.get("enabled", True)
 

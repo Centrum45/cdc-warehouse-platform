@@ -3,6 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 env_file="${1:-deploy/prod/admin.env}"
+jobs_env_file="${2:-deploy/prod/jobs.env}"
 
 if [[ ! -f "${env_file}" ]]; then
   echo "missing env file: ${env_file}" >&2
@@ -12,6 +13,9 @@ fi
 
 set -a
 source "${env_file}"
+if [[ -f "${jobs_env_file}" ]]; then
+  source "${jobs_env_file}"
+fi
 set +a
 
 cd platform/springboot-admin

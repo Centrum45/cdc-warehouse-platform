@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -39,11 +40,15 @@ def replace_ods_binlog(metadata_path: Path, lake_root: str | Path, event_file: P
             grouped[dt].append(event_to_binlog_row(event))
 
     lake = WebHdfsLake(str(lake_root)) if is_hdfs_root(lake_root) else LocalLake(Path(lake_root))
+    table_root = lake.root / "ods_binlog" / f"db={database}" / f"table={table}"
+    if isinstance(lake, WebHdfsLake):
+        lake.delete(table_root, recursive=True)
+    elif table_root.exists():
+        shutil.rmtree(table_root)
     written: list[object] = []
     for dt, rows in grouped.items():
         output_path = lake.binlog_partition(database, table, dt) / "part-00000.parquet"
         if isinstance(lake, WebHdfsLake):
-            lake.delete(output_path.parent, recursive=True)
             write_hdfs_parquet(lake, output_path, rows)
         else:
             for old_file in output_path.parent.glob("part-*"):
@@ -71,6 +76,11 @@ def append_ods_binlog(metadata_path: Path, lake_root: str | Path, event_file: Pa
                 write_progress(progress_root, database, table, int(event["ts"]), dt)
 
     lake = WebHdfsLake(str(lake_root)) if is_hdfs_root(lake_root) else LocalLake(Path(lake_root))
+    table_root = lake.root / "ods" / f"db={database}" / f"table={table}"
+    if isinstance(lake, WebHdfsLake):
+        lake.delete(table_root, recursive=True)
+    elif table_root.exists():
+        shutil.rmtree(table_root)
     written: list[object] = []
     for dt, rows in grouped.items():
         output_path = lake.binlog_partition(database, table, dt) / "part-00000.parquet"
@@ -109,7 +119,6 @@ def replace_ods_snapshot(metadata_path: Path, lake_root: str | Path, event_file:
     for dt, rows in grouped.items():
         output_path = lake.ods_partition(database, table, dt) / "part-00000.parquet"
         if isinstance(lake, WebHdfsLake):
-            lake.delete(output_path.parent, recursive=True)
             lake.write_bytes(output_path, parquet_bytes(rows, columns))
         else:
             for old_file in output_path.parent.glob("part-*"):
@@ -122,12 +131,15 @@ def replace_ods_snapshot(metadata_path: Path, lake_root: str | Path, event_file:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Bootstrap a MySQL table into HDFS ods_binlog as Maxwell bootstrap-insert events.")
     parser.add_argument("metadata_path", help="metadata/tables/<db>.<table>.json")
-    parser.add_argument("--lake-root", default=DEFAULT_HDFS_ROOT)
+    parser.add_argument("--lake-root", default=os.environ.get("LAKE_ROOT", DEFAULT_HDFS_ROOT))
     parser.add_argument("--output", default=None)
-    parser.add_argument("--progress-root", default="data/progress")
+    parser.add_argument("--progress-root", default=os.environ.get("PROGRESS_ROOT", "data/progress"))
     parser.add_argument("--container", default="cdc-warehouse-mysql")
-    parser.add_argument("--user", default=os.environ.get("MYSQL_USER", "root"))
-    parser.add_argument("--password", default=os.environ.get("MYSQL_ROOT_PASSWORD", os.environ.get("MYSQL_PASSWORD", "root")))
+    parser.add_argument("--mysql-mode", choices=["auto", "direct", "docker"], default=os.environ.get("SOURCE_MYSQL_MODE", "auto"))
+    parser.add_argument("--host", default=os.environ.get("SOURCE_MYSQL_HOST"))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("SOURCE_MYSQL_PORT", "3306")))
+    parser.add_argument("--user", default=os.environ.get("SOURCE_MYSQL_USER", os.environ.get("MYSQL_USER", "root")))
+    parser.add_argument("--password", default=os.environ.get("SOURCE_MYSQL_PASSWORD", os.environ.get("MYSQL_ROOT_PASSWORD", os.environ.get("MYSQL_PASSWORD", "root"))))
     parser.add_argument("--merge", action="store_true", help="Run ODS merge after bootstrap sink.")
     parser.add_argument("--replace-binlog", action="store_true", help="Replace ODS binlog partition with bootstrap events instead of append.")
     parser.add_argument("--replace-ods", action="store_true", help="Replace ODS snapshot from current MySQL full data.")
@@ -136,7 +148,16 @@ def main() -> None:
 
     metadata_path = Path(args.metadata_path)
     output = Path(args.output) if args.output else Path("data/kafka") / f"bootstrap.{metadata_path.stem}.jsonl"
-    event_file = bootstrap_table(metadata_path, output, args.container, args.user, args.password)
+    event_file = bootstrap_table(
+        metadata_path,
+        output,
+        args.container,
+        args.user,
+        args.password,
+        args.mysql_mode,
+        args.host,
+        args.port,
+    )
     print(f"bootstrap_events: {event_file}")
 
     if args.replace_binlog:

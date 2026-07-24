@@ -1,7 +1,21 @@
 {
   "row_count": {
     "min_ratio": 0.99,
-    "max_ratio": 1.01
+    "max_ratio": 1.01,
+    "comparisons": [
+      {
+        "database": "basiccomment",
+        "table": "avatar_commentbatchsource",
+        "source": "ods/db=basiccomment/table=avatar_commentbatchsource/dt={biz_dt}",
+        "target": "dwd/dwd_comment_batch_detail_di/dt={biz_dt}"
+      },
+      {
+        "database": "trade",
+        "table": "order_info",
+        "source": "ods/db=trade/table=order_info/dt={biz_dt}",
+        "target": "dwd/dwd_trade_order_detail_di/dt={biz_dt}"
+      }
+    ]
   },
   "null_rate": {
     "max_null_rate": 0.05,
@@ -9,5 +23,8 @@
   },
   "partition": {
     "enabled": true
+  },
+  "table_update": {
+    "max_stale_minutes": 2880
   }
 }

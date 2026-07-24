@@ -1,10 +1,11 @@
 # Realtime Kudu / Impala
 
-The realtime path consumes Maxwell binlog events and writes latest-row state to Kudu through Impala SQL.
+The production realtime path uses PySpark Structured Streaming to consume
+Maxwell events and writes latest-row state to Kudu through Impala SQL.
 
 ```text
 Kafka / JSONL binlog
-  -> streaming/realtime_sink/kafka_to_kudu.py
+  -> streaming/realtime_sink/pyspark_kafka_to_kudu.py
   -> Impala UPSERT/DELETE
   -> Kudu tables
   -> Impala realtime views
@@ -76,10 +77,20 @@ python3 scripts/spark_streaming_kafka_to_kudu_once.py --bootstrap-objects
 Run continuously:
 
 ```bash
-python3 scripts/spark_streaming_kafka_to_kudu_loop.py --bootstrap-objects
+bash deploy/run_job.sh realtime-streaming
 ```
 
-When Docker CLI is available, the script exports from `cdc-warehouse-kafka` with `kafka-console-consumer`. Inside containers without Docker CLI, it uses `kafka-python` and connects directly to `kafka:9092`.
+The job uses Spark's Kafka source and checkpoint directory for offset
+management. `spark_streaming_kafka_to_kudu_once.py` remains a smoke/debug
+entrypoint only.
+
+Server deployment can enable the optional systemd unit:
+
+```text
+REALTIME_STREAMING_ENABLED=true
+```
+
+Then restart through `deploy/server/control.sh`.
 
 Stop:
 

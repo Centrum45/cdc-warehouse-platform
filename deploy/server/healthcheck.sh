@@ -88,7 +88,11 @@ check_optional_cmd mysql
 check_service cdc-admin.service
 check_service cdc-spark-streaming.service
 check_service cdc-ops-refresh.service
+if [[ "${REALTIME_STREAMING_ENABLED:-false}" == "true" ]]; then
+  check_service cdc-realtime-streaming.service
+fi
 systemctl list-timers --all cdc-daily-merge.timer --no-pager >/dev/null 2>&1 && pass "timer cdc-daily-merge visible" || warn "timer cdc-daily-merge not visible"
+systemctl list-timers --all cdc-monitor.timer --no-pager >/dev/null 2>&1 && pass "timer cdc-monitor visible" || warn "timer cdc-monitor not visible"
 
 if command -v curl >/dev/null 2>&1; then
   port="${SERVER_PORT:-8080}"

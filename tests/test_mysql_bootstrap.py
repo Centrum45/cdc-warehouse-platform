@@ -5,7 +5,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ingestion.bootstrap.mysql_bootstrap import build_bootstrap_events, build_select_sql, rows_from_tsv, write_events
+from ingestion.bootstrap.mysql_bootstrap import (
+    build_bootstrap_events,
+    build_select_sql,
+    mysql_query_tsv,
+    rows_from_tsv,
+    write_events,
+)
 from scripts.bootstrap_mysql_table import append_ods_binlog
 from warehouse.storage.binlog_parquet import read_local_parquet, row_to_event
 
@@ -39,6 +45,10 @@ class MysqlBootstrapTest(unittest.TestCase):
         self.assertEqual(rows[0]["id"], 9001)
         self.assertEqual(rows[0]["ver"], 1)
         self.assertEqual(rows[0]["source_channel"], "docker")
+
+    def test_invalid_bootstrap_mode_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            mysql_query_tsv("select 1", mode="invalid")
 
     def test_bootstrap_events_append_to_ods_binlog(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

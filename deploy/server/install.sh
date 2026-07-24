@@ -38,6 +38,8 @@ need_file "${repo_root}/deploy/server/admin.env.example"
 need_file "${repo_root}/deploy/server/jobs.env.example"
 need_file "${repo_root}/deploy/server/cdc-admin.service"
 need_file "${repo_root}/deploy/server/cdc-spark-streaming.service"
+need_file "${repo_root}/deploy/server/cdc-realtime-streaming.service"
+need_file "${repo_root}/deploy/server/cdc-monitor.timer"
 need_file "${repo_root}/deploy/server/cdc-daily-merge.timer"
 need_file "${repo_root}/platform/springboot-admin/pom.xml"
 

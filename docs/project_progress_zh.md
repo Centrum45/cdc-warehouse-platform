@@ -42,12 +42,6 @@ GitHub Actions main 分支 CI 已通过
 服务器部署脚本已有 dry-run/preflight/health/smoke
 ```
 
-最近一次 main 分支提交：
-
-```text
-93485be feat: add realtime kudu impala bootstrap
-```
-
 CI 状态：
 
 ```text
@@ -90,7 +84,8 @@ MySQL insert
 - SparkStreaming 风格消费脚本。
 - HDFS ods_binlog 按库、表、日期分区写入。
 - 本地 JSONL 模式兜底，方便无 Kafka/HDFS 时调试。
-- 敏感字段检测与脱敏逻辑。
+- 敏感字段检测与脱敏已经接入 SparkStreaming HDFS 写入链路。
+- 敏感字段命中记录可写入独立 HDFS 告警目录。
 
 ### 3.3 Bootstrap 全量同步
 
@@ -100,6 +95,7 @@ MySQL insert
 - 接入新表前先做全量同步的流程。
 - bootstrap 事件写入 ods_binlog。
 - bootstrap 数据参与 ODS merge。
+- 本地支持 Docker MySQL，生产支持直接连接远程 MySQL。
 
 ### 3.4 ODS Merge
 
@@ -166,6 +162,7 @@ comment_batch_priority_total
 - 新表接入后自动验收。
 - 失败任务关联日志上下文。
 - Replay 页面。
+- Replay 可真实执行全量 MySQL 快照重放并记录运行状态。
 - Monitors 页面。
 - Rules 页面。
 - Hive 查询页面/API。
@@ -208,6 +205,9 @@ comment_batch_priority_total
 - 分区检查。
 - 行数检查。
 - 空值率检查。
+- 监控套件自动扫描全部表元数据，不再固定单表和日期。
+- Spark 可直接读取本地/HDFS Parquet 执行质量检查。
+- 监控结果可同步写入管理平台 MySQL。
 
 ### 3.9 DolphinScheduler
 
@@ -228,11 +228,15 @@ comment_batch_priority_total
 - Impala View SQL。
 - Kudu client，经 Impala 执行 UPSERT/DELETE。
 - Impala query client。
-- 实时 sink 本地 CSV 模拟模式。
 - 真实 Kudu/Impala bootstrap 脚本。
 - 实时 smoke 脚本。
 - dry-run SQL 预览。
 - 真实模式失败不静默 fallback，直接报错。
+- PySpark Structured Streaming 直接消费 Kafka。
+- Spark checkpoint 管理 Kafka offset。
+- micro-batch 内按主键、版本和事件类型折叠后写 Kudu。
+- 可选 `cdc-realtime-streaming.service` 生产常驻服务。
+- `cdc-monitor.timer` 每日执行配置化质量监控。
 
 相关命令：
 
@@ -319,21 +323,18 @@ dry-run/preflight 已可用
 真实服务器未验证
 ```
 
-### 4.2 真实 Kudu/Impala 集群联调
+### 4.2 生产 Kudu/Impala 集群联调
 
 未完成：
 
-- 本机没有安装 `impyla`。
-- 本地没有真实 Kudu/Impala 集群。
 - 真实 Impala 认证、Kudu 建表权限、UPSERT 性能还未验证。
 
 当前状态：
 
 ```text
-代码支持真实模式
-dry-run 已验证
-CSV 模拟已验证
-真实集群未验证
+本地 Docker Kudu/Impala 已提供
+Structured Streaming 生产入口已完成
+真实生产集群认证和性能未验证
 ```
 
 ### 4.3 权限体系

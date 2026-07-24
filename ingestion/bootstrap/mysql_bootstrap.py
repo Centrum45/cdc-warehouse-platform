@@ -30,9 +30,35 @@ def mysql_query_tsv(
     container: str = "cdc-warehouse-mysql",
     user: str | None = None,
     password: str | None = None,
+    mode: str = "auto",
+    host: str | None = None,
+    port: int | None = None,
 ) -> str:
-    _user = user or os.environ.get("MYSQL_USER", "root")
-    _password = password or _default_password()
+    resolved_host = host or os.environ.get("SOURCE_MYSQL_HOST")
+    resolved_mode = mode
+    if resolved_mode == "auto":
+        resolved_mode = "direct" if resolved_host else "docker"
+    if resolved_mode == "direct":
+        return mysql_query_tsv_direct(
+            sql,
+            resolved_host or "127.0.0.1",
+            port or int(os.environ.get("SOURCE_MYSQL_PORT", "3306")),
+            user or os.environ.get("SOURCE_MYSQL_USER", os.environ.get("MYSQL_USER", "root")),
+            password or os.environ.get("SOURCE_MYSQL_PASSWORD", _default_password()),
+        )
+    if resolved_mode != "docker":
+        raise ValueError(f"unsupported MySQL bootstrap mode: {resolved_mode}")
+    return mysql_query_tsv_docker(sql, container, user, password)
+
+
+def mysql_query_tsv_docker(
+    sql: str,
+    container: str,
+    user: str | None = None,
+    password: str | None = None,
+) -> str:
+    _user = user or os.environ.get("SOURCE_MYSQL_USER", os.environ.get("MYSQL_USER", "root"))
+    _password = password or os.environ.get("SOURCE_MYSQL_PASSWORD", _default_password())
     command = [
         "docker",
         "exec",
@@ -51,6 +77,33 @@ def mysql_query_tsv(
     if completed.returncode != 0:
         raise RuntimeError(completed.stderr or completed.stdout)
     return completed.stdout
+
+
+def mysql_query_tsv_direct(sql: str, host: str, port: int, user: str, password: str) -> str:
+    try:
+        import pymysql
+    except ImportError as exc:
+        raise RuntimeError("PyMySQL is required for direct MySQL bootstrap") from exc
+
+    connection = pymysql.connect(
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        charset="utf8mb4",
+        connect_timeout=int(os.environ.get("SOURCE_MYSQL_CONNECT_TIMEOUT", "10")),
+        read_timeout=int(os.environ.get("SOURCE_MYSQL_READ_TIMEOUT", "300")),
+    )
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            lines = []
+            for row in cursor:
+                values = [r"\N" if value is None else str(value) for value in row]
+                lines.append("\t".join(values))
+        return "\n".join(lines) + ("\n" if lines else "")
+    finally:
+        connection.close()
 
 
 def coerce_value(value: str | None, hive_type: str) -> Any:
@@ -112,8 +165,14 @@ def bootstrap_table(
     container: str = "cdc-warehouse-mysql",
     user: str | None = None,
     password: str | None = None,
+    mode: str = "auto",
+    host: str | None = None,
+    port: int | None = None,
 ) -> Path:
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     sql = build_select_sql(metadata)
-    rows = rows_from_tsv(mysql_query_tsv(sql, container, user, password), metadata)
+    rows = rows_from_tsv(
+        mysql_query_tsv(sql, container, user, password, mode, host, port),
+        metadata,
+    )
     return write_events(build_bootstrap_events(rows, metadata), output_path)

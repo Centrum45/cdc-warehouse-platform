@@ -9,6 +9,7 @@ from unittest.mock import patch
 from realtime.impala.bootstrap import bootstrap_realtime, load_statements, split_sql
 from realtime.kudu.kudu_client import KuduClient
 from streaming.realtime_sink.kafka_to_kudu import upsert_rows
+from streaming.realtime_sink.pyspark_kafka_to_kudu import latest_events
 
 
 class FakeKuduClient:
@@ -45,6 +46,15 @@ def write_topic(path: Path) -> None:
 
 
 class RealtimeKuduImpalaTest(unittest.TestCase):
+    def test_latest_realtime_event_uses_version_and_delete_priority(self) -> None:
+        rows = [
+            {"type": "update", "ts": 10, "data": {"id": "1", "ver": "2"}},
+            {"type": "insert", "ts": 9, "data": {"id": "1", "ver": "1"}},
+            {"type": "delete", "ts": 10, "data": {"id": "1", "ver": "2"}},
+        ]
+        latest = latest_events(rows, ["id"])
+        self.assertEqual(len(latest), 1)
+        self.assertEqual(latest[0]["type"], "delete")
     def test_split_sql(self) -> None:
         self.assertEqual(split_sql("-- c\ncreate database x;\n\nselect 1;"), ["create database x", "select 1"])
 

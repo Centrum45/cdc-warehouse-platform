@@ -11,7 +11,7 @@ This document describes how to deploy the project in two modes:
 MySQL
   -> Maxwell
   -> Kafka topic cdc.incremental.binlog
-  -> SparkStreaming-style consumer
+  -> Spark Structured Streaming consumer
   -> HDFS /warehouse/ods_binlog
   -> Daily ODS merge
   -> Hive ODS/DIM/DWD/DWS/DWT/ADS
@@ -564,6 +564,12 @@ Example:
 ENVIRONMENT=prod
 PROJECT_ROOT=/opt/cdc-warehouse-platform
 
+SOURCE_MYSQL_MODE=direct
+SOURCE_MYSQL_HOST=mysql.prod.example.com
+SOURCE_MYSQL_PORT=3306
+SOURCE_MYSQL_USER=cdc_reader
+SOURCE_MYSQL_PASSWORD=your_password
+
 KAFKA_BOOTSTRAP_SERVERS=kafka01.prod.example.com:9092,kafka02.prod.example.com:9092
 KAFKA_TOPIC=cdc.incremental.binlog
 
@@ -572,10 +578,12 @@ WAREHOUSE_HDFS_ROOT=hdfs://nameservice1/warehouse
 WEBHDFS_ENDPOINT=http://namenode.prod.example.com:9870
 WEBHDFS_USER=hdfs
 
-PROGRESS_ROOT=/warehouse/progress
+PROGRESS_ROOT=hdfs://nameservice1/warehouse/progress
 DELAY_GATE_MAX_SECONDS=1800
 
 SPARK_STREAMING_INTERVAL_SECONDS=5
+SPARK_SENSITIVE_RULES=metadata/rules/sensitive_columns.json
+SPARK_SENSITIVE_ALERT_PATH=hdfs://nameservice1/warehouse/alerts/sensitive
 DS_ENDPOINT=http://dolphinscheduler.prod.example.com:12345/dolphinscheduler
 DS_TOKEN=your_ds_token
 ```
@@ -589,6 +597,8 @@ IMPALA_USER=cdc_user
 IMPALA_PASSWORD=your_password
 IMPALA_AUTH_MECHANISM=PLAIN
 KUDU_MASTERS=kudu-master-1.prod.example.com:7051,kudu-master-2.prod.example.com:7051
+REALTIME_STREAMING_CHECKPOINT=hdfs://nameservice1/warehouse/checkpoints/realtime_kudu
+REALTIME_STREAMING_ENABLED=true
 ```
 
 Protect env files:

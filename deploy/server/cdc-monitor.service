@@ -1,0 +1,13 @@
+[Unit]
+Description=CDC Warehouse Data Quality Monitor Suite
+After=network-online.target cdc-spark-streaming.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=cdc
+Group=cdc
+WorkingDirectory=/opt/cdc-warehouse-platform
+EnvironmentFile=/etc/cdc-warehouse/admin.env
+EnvironmentFile=/etc/cdc-warehouse/jobs.env
+ExecStart=/opt/cdc-warehouse-platform/deploy/server/run_monitors.sh
